@@ -81,6 +81,7 @@ const suggestions = [
 
 export default function AgentPage() {
   const [inputVal, setInputVal] = useState("");
+  const [isPageReady, setIsPageReady] = useState(false);
   const [selectedModel, setSelectedModel] = useState("claude-sonnet-3.5");
   const [activeTab, setActiveTab] = useState<"editor" | "runs">("editor");
   const [isReadWriteActive, setIsReadWriteActive] = useState(true);
@@ -112,6 +113,19 @@ export default function AgentPage() {
   const [showWorkflowChoice, setShowWorkflowChoice] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState("");
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
+
+  // Animation state for smooth Allotment panel expansion/collapse (220ms transition + 30ms buffer)
+  const [isAnimating, setIsAnimating] = useState(false);
+  const prevIsRightOpen = useRef(isRightOpen);
+
+  useEffect(() => {
+    if (prevIsRightOpen.current !== isRightOpen) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 250);
+      prevIsRightOpen.current = isRightOpen;
+      return () => clearTimeout(timer);
+    }
+  }, [isRightOpen]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   /** Extract app names from workflow nodes and match against connectorIcons keys */
@@ -621,6 +635,15 @@ export default function AgentPage() {
 
   const user = useQuery(api.user.getCurrentUser);
 
+  // Flip page-ready once Convex user data resolves (undefined = loading)
+  useEffect(() => {
+    if (user !== undefined) {
+      // Small delay so the typewriter has a moment to breathe
+      const t = setTimeout(() => setIsPageReady(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [user]);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -723,7 +746,8 @@ export default function AgentPage() {
   const selected = models.find((m) => m.value === selectedModel) || models[0];
 
   return (
-    <div className="h-[calc(100vh-4rem)] w-[calc(100%+3rem)] -mx-6 -my-6 flex overflow-hidden bg-background">
+    <div className="h-[calc(100vh-4rem)] w-[calc(100%+3rem)] -mx-6 -my-6 flex overflow-hidden bg-background relative">
+      <div className={`h-full w-full flex transition-opacity duration-700 ease-in-out ${isPageReady ? "opacity-100" : "opacity-0 pointer-events-none"} ${isAnimating ? "allotment-animating" : ""}`}>
       {/* Workflow choice dialog */}
       <WorkflowChoiceDialog
         open={showWorkflowChoice}
@@ -800,9 +824,20 @@ export default function AgentPage() {
         .animate-shape-morph {
           animation: shapeMorph 10s ease-in-out infinite;
         }
+
+        /* Snappy & smooth cubic-bezier transitions for Allotment layout elements */
+        .allotment-animating [class*="allotment-module_pane"],
+        .allotment-animating [class*="allotment-module_sash"] {
+          transition: flex 220ms cubic-bezier(0.16, 1, 0.3, 1), 
+                      min-width 220ms cubic-bezier(0.16, 1, 0.3, 1), 
+                      max-width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                      width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                      left 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                      transform 220ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
       `}</style>
 
-      <Allotment key={isRightOpen ? "open" : "closed"}>
+      <Allotment>
         {/* Left Pane: Agent Chat Space */}
         <Allotment.Pane minSize={400}>
           <div
@@ -821,8 +856,10 @@ export default function AgentPage() {
                 activeSteps={activeSteps}
               />
             ) : (
-              /* Welcome content */
+              /* Welcome / loading area — skeleton fades out, real content fades in */
               <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl my-auto">
+
+                {/* ── Logo (always visible) ── */}
                 <div className="relative flex items-center justify-center w-16 h-16 mb-4 group cursor-pointer">
                   <div className="relative w-16 h-16 bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 p-0.5 shadow-2xl flex items-center justify-center overflow-hidden animate-shape-morph">
                     <div className="absolute inset-0 rounded-[inherit] border border-white/20 bg-linear-to-b from-white/15 to-transparent" />
@@ -838,9 +875,10 @@ export default function AgentPage() {
                   </div>
                 </div>
 
-                {/* Welcoming typewriter effect */}
-                <div className="text-lg font-medium text-muted-foreground mb-8 text-center max-w-xl">
+                {/* ── Typewriter text — welcome ── */}
+                <div className="text-lg font-medium text-muted-foreground mb-8 text-center max-w-xl min-h-[2rem]">
                   <Typewriter
+                    key="welcome"
                     onInit={(typewriter) => {
                       typewriter
                         .typeString("How can I help you today?")
@@ -860,19 +898,18 @@ export default function AgentPage() {
                       loop: true,
                       delay: 80,
                       deleteSpeed: 40,
-                      cursorClassName:
-                        "text-blue-500 font-normal animate-pulse",
+                      cursorClassName: "text-blue-500 font-normal animate-pulse",
                     }}
                   />
                 </div>
 
-                {/* Suggestions Grid */}
+                {/* ── Cards — suggestions ── */}
                 <div
                   className={`grid w-full max-w-2xl gap-3.5 mb-6 ${
                     isNarrow ? "grid-cols-1" : "grid-cols-3"
                   }`}
                 >
-                  {suggestions.map((s) => (
+                  {suggestions.map((s, idx) => (
                     <button
                       key={s.title}
                       type="button"
@@ -882,6 +919,11 @@ export default function AgentPage() {
                           ? "flex-row items-center p-2 rounded-lg border border-border h-11"
                           : "flex-col items-start p-4 rounded-xl border border-border h-36"
                       }`}
+                      style={{
+                        transitionDelay: `${idx * 80}ms`,
+                        animation: `fadeInUp 0.4s ease both`,
+                        animationDelay: `${idx * 80}ms`,
+                      }}
                     >
                       {isNarrow ? (
                         <>
@@ -1399,61 +1441,147 @@ export default function AgentPage() {
           </div>
         </Allotment.Pane>
 
-        {/* Right Pane: Workflow Panel */}
-        <Allotment.Pane
-          minSize={isRightOpen ? 600 : 60}
-          maxSize={isRightOpen ? undefined : 60}
-          preferredSize={isRightOpen ? "50%" : 60}
-        >
-          <WorkflowPanel
-            isRightOpen={isRightOpen}
-            setIsRightOpen={setIsRightOpen}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            workflowData={workflowData}
-            setWorkflowData={setWorkflowData}
-            isSaving={isSaving}
-            isWorkflowRunning={isWorkflowRunning}
-            setIsWorkflowRunning={setIsWorkflowRunning}
-            setCurrentStepIndex={setCurrentStepIndex}
-            nodeExecutionStatuses={nodeExecutionStatuses}
-            isWorkflowReadyToRun={isWorkflowReadyToRun}
-            startSimulation={startSimulation}
-            handleNodesChange={handleNodesChange}
-            onSelectSuggestion={(prompt, apps) => {
-              if (activeMode === "brain") setActiveMode("agent");
-              setSelectedSuggestionApps(apps || []);
-              setInputVal(prompt);
-            }}
-            onEditWorkflow={(text) => {
-              if (activeMode === "brain") setActiveMode("agent");
-              const apps = extractAppsFromWorkflow(workflowData?.nodes ?? []);
-              if (apps.length > 0) setSelectedSuggestionApps(apps);
+        {/* Right Pane: Workflow Panel — only mount after page is ready */}
+        {isPageReady && (
+          <Allotment.Pane
+            minSize={isRightOpen ? 600 : 60}
+            maxSize={isRightOpen ? undefined : 60}
+            preferredSize={isRightOpen ? "50%" : 60}
+          >
+            <WorkflowPanel
+              isRightOpen={isRightOpen}
+              setIsRightOpen={setIsRightOpen}
+              isPageReady={isPageReady}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              workflowData={workflowData}
+              setWorkflowData={setWorkflowData}
+              isSaving={isSaving}
+              isWorkflowRunning={isWorkflowRunning}
+              setIsWorkflowRunning={setIsWorkflowRunning}
+              setCurrentStepIndex={setCurrentStepIndex}
+              nodeExecutionStatuses={nodeExecutionStatuses}
+              isWorkflowReadyToRun={isWorkflowReadyToRun}
+              startSimulation={startSimulation}
+              handleNodesChange={handleNodesChange}
+              onSelectSuggestion={(prompt, apps) => {
+                if (activeMode === "brain") setActiveMode("agent");
+                setSelectedSuggestionApps(apps || []);
+                setInputVal(prompt);
+              }}
+              onEditWorkflow={(text) => {
+                if (activeMode === "brain") setActiveMode("agent");
+                const apps = extractAppsFromWorkflow(workflowData?.nodes ?? []);
+                if (apps.length > 0) setSelectedSuggestionApps(apps);
 
-              let finalPrompt = "edit this workflow as -> ";
-              if (text) {
-                const cleanPrompt = text.replace(
-                  /^(edit this workflow as ->|edit this workflow as|edit this worklow as ->|edit this worklow as)\s*/i,
-                  "",
-                );
-                finalPrompt += cleanPrompt;
-              }
+                let finalPrompt = "edit this workflow as -> ";
+                if (text) {
+                  const cleanPrompt = text.replace(
+                    /^(edit this workflow as ->|edit this workflow as|edit this worklow as ->|edit this worklow as)\s*/i,
+                    "",
+                  );
+                  finalPrompt += cleanPrompt;
+                }
 
-              setInputVal(finalPrompt);
-              setIsEditingWorkflow(true);
-              setTimeout(() => {
-                if (textareaRef.current) textareaRef.current.focus();
-              }, 50);
-            }}
-            savedWorkflowId={savedWorkflowId}
-            setSavedWorkflowId={setSavedWorkflowId}
-            isStarred={isStarred}
-            setIsStarred={setIsStarred}
-            workflowTitle={workflowTitle}
-            setWorkflowTitle={setWorkflowTitle}
-          />
-        </Allotment.Pane>
+                setInputVal(finalPrompt);
+                setIsEditingWorkflow(true);
+                setTimeout(() => {
+                  if (textareaRef.current) textareaRef.current.focus();
+                }, 50);
+              }}
+              savedWorkflowId={savedWorkflowId}
+              setSavedWorkflowId={setSavedWorkflowId}
+              isStarred={isStarred}
+              setIsStarred={setIsStarred}
+              workflowTitle={workflowTitle}
+              setWorkflowTitle={setWorkflowTitle}
+            />
+          </Allotment.Pane>
+        )}
       </Allotment>
+      </div>
+
+      {/* Centered Loading Overlay */}
+      <div
+        className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-background p-8 transition-all duration-700 ease-in-out ${
+          isPageReady
+            ? "opacity-0 pointer-events-none scale-98 blur-xs"
+            : "opacity-100 pointer-events-auto scale-100"
+        }`}
+      >
+        <div className="flex flex-col items-center justify-center w-full max-w-2xl text-center">
+          {/* ── Logo ── */}
+          <div className="relative flex items-center justify-center w-16 h-16 mb-4">
+            <div className="relative w-16 h-16 bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 p-0.5 shadow-2xl flex items-center justify-center overflow-hidden animate-shape-morph">
+              <div className="absolute inset-0 rounded-[inherit] border border-white/20 bg-linear-to-b from-white/15 to-transparent" />
+              <svg
+                fill="currentColor"
+                viewBox="0 0 36 48"
+                className="w-9 h-11 text-white drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)] relative z-10"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <title>Aria Logo</title>
+                <path d="m0 6c10.1433 9.4404 25.8567 9.4404 36 0-9.4404 10.1433-9.4404 25.8567 0 36-10.1433-9.4404-25.8567-9.4404-36 0 9.44041-10.1433 9.44041-25.8567 0-36z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* ── Typewriter text — loading ── */}
+          <div className="text-lg font-medium text-muted-foreground mb-8 text-center max-w-xl min-h-[2rem]">
+            <Typewriter
+              key="setup"
+              onInit={(typewriter) => {
+                typewriter
+                  .typeString("Setting up environment")
+                  .pauseFor(300)
+                  .typeString(".")
+                  .pauseFor(250)
+                  .typeString(".")
+                  .pauseFor(250)
+                  .typeString(".")
+                  .pauseFor(500)
+                  .deleteChars(3)
+                  .typeString(".")
+                  .pauseFor(250)
+                  .typeString(".")
+                  .pauseFor(250)
+                  .typeString(".")
+                  .pauseFor(500)
+                  .deleteChars(3)
+                  .typeString(".")
+                  .pauseFor(250)
+                  .typeString(".")
+                  .pauseFor(250)
+                  .typeString(".")
+                  .start();
+              }}
+              options={{
+                loop: false,
+                delay: 55,
+                cursorClassName: "text-purple-400 font-normal animate-pulse",
+              }}
+            />
+          </div>
+
+          {/* ── Skeleton cards ── */}
+          <div className="grid w-full max-w-2xl gap-3.5 mb-6 grid-cols-1 sm:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="bg-card border border-border rounded-xl animate-pulse h-11 sm:h-36"
+                style={{ animationDelay: `${i * 120}ms` }}
+              >
+                <div className="hidden sm:flex p-4 flex-col gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted" />
+                  <div className="w-24 h-3 rounded bg-muted" />
+                  <div className="w-full h-2 rounded bg-muted/60" />
+                  <div className="w-4/5 h-2 rounded bg-muted/40" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
