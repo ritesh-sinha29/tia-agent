@@ -1128,13 +1128,13 @@ function AppNode({ data }: { data: any }) {
         </h4>
         {actionName && (
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-[10px] text-blue-100 bg-blue-700/50 border border-blue-400/30 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px]">
+            <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px]">
               {actionName}
             </span>
             {data.isRunsTab ? (
               data.errors && data.errors.length > 0 ? (
-                <div className="flex items-center gap-1 text-[10px] text-red-200 font-medium">
-                  <AlertCircle className="size-3.5 text-red-200" />
+                <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold">
+                  <AlertCircle className="size-3.5 text-red-600" />
                   <span>Missing parameter</span>
                 </div>
               ) : (
@@ -1189,10 +1189,10 @@ function AppNode({ data }: { data: any }) {
           data.errors &&
           data.errors.length > 0 &&
           !data.isSimulationActive && (
-            <div className="mt-2.5 pt-2 border-t border-white/20 text-[10px] text-red-100 flex flex-col gap-1">
+            <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[10px] text-red-700 flex flex-col gap-1">
               {data.errors.map((err: string, i: number) => (
-                <span key={i} className="flex items-center gap-1 font-medium">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-200" />
+                <span key={i} className="flex items-center gap-1 font-semibold">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
                   {err}
                 </span>
               ))}
@@ -1368,15 +1368,19 @@ function FlowFitter({
   nodes,
   containerRef,
   zoom,
+  width,
 }: {
   nodes: any[];
   containerRef: React.RefObject<HTMLDivElement | null>;
   zoom: number;
+  width: number;
 }) {
   const { setViewport } = useReactFlow();
+  const isInitial = useRef(true);
+
   useEffect(() => {
     if (nodes && nodes.length > 0 && containerRef.current) {
-      const t = setTimeout(() => {
+      const alignViewport = () => {
         const rect = containerRef.current?.getBoundingClientRect();
         if (rect) {
           const nodeWidth = 500;
@@ -1385,10 +1389,17 @@ function FlowFitter({
           // Start from y = 0 since vertical padding is already computed in node coordinates
           setViewport({ x, y: 0, zoom });
         }
-      }, 100);
-      return () => clearTimeout(t);
+      };
+
+      if (isInitial.current) {
+        isInitial.current = false;
+        const t = setTimeout(alignViewport, 100);
+        return () => clearTimeout(t);
+      } else {
+        alignViewport();
+      }
     }
-  }, [nodes, setViewport, containerRef, zoom]);
+  }, [nodes, setViewport, containerRef, zoom, width]);
   return null;
 }
 
@@ -1689,7 +1700,7 @@ export default function FlowPreview({
             selectionOnDrag={false}
           >
             <Background gap={24} size={1} color="#e5e5e5" />
-            <FlowFitter nodes={renderedNodes} containerRef={containerRef} zoom={ZOOM} />
+            <FlowFitter nodes={renderedNodes} containerRef={containerRef} zoom={ZOOM} width={dimensions.width} />
 
             {/* Arrow marker */}
             <svg style={{ position: "absolute", width: 0, height: 0 }}>
