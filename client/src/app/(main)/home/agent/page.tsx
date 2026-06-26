@@ -789,11 +789,13 @@ export default function AgentPage() {
       />
       {/* Global CSS overrides for Allotment dividers and custom morph animations */}
       <style>{`
-        .allotment-module_sash__By-6u::after {
+        [class*="allotment-module_sash"]::after,
+        [class*="sash-module_sash"]::after {
           background-color: var(--border) !important;
           width: 1px !important;
         }
-        .allotment-module_sash__By-6u:hover::after {
+        [class*="allotment-module_sash"]:hover::after,
+        [class*="sash-module_sash"]:hover::after {
           background-color: var(--ring) !important;
         }
         .writing-vertical {
@@ -826,8 +828,9 @@ export default function AgentPage() {
         }
 
         /* Snappy & smooth cubic-bezier transitions for Allotment layout elements */
-        .allotment-animating [class*="allotment-module_pane"],
-        .allotment-animating [class*="allotment-module_sash"] {
+        .allotment-animating [class*="allotment-module_splitViewView"],
+        .allotment-animating [class*="allotment-module_sash"],
+        .allotment-animating [class*="sash-module_sash"] {
           transition: flex 220ms cubic-bezier(0.16, 1, 0.3, 1), 
                       min-width 220ms cubic-bezier(0.16, 1, 0.3, 1), 
                       max-width 220ms cubic-bezier(0.16, 1, 0.3, 1),

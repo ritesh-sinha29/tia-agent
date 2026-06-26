@@ -159,7 +159,7 @@ export default function WorkflowPanel({
       {/* Open Panel */}
       <div
         className={`h-full w-full flex flex-col bg-background border-l border-border transition-transform duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          isRightOpen ? "translate-x-0" : "translate-x-full"
+          isRightOpen ? "translate-x-0" : "translate-x-full overflow-hidden"
         }`}
       >
         {/* Header */}
