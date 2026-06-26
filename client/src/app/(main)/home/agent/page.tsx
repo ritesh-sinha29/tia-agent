@@ -1,8 +1,6 @@
 "use client";
 
-import { Allotment } from "allotment";
-import { useCallback, useEffect, useRef, useState } from "react";
-import "allotment/dist/style.css";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import {
   AlertCircle,
@@ -114,18 +112,53 @@ export default function AgentPage() {
   const [pendingPrompt, setPendingPrompt] = useState("");
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
 
-  // Animation state for smooth Allotment panel expansion/collapse (220ms transition + 30ms buffer)
-  const [isAnimating, setIsAnimating] = useState(false);
-  const prevIsRightOpen = useRef(isRightOpen);
+  // Custom Resizer States for industry-level, lightweight, and robust resizing
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [rightWidth, setRightWidth] = useState(600); // Default to original 600px width
+  const [isDragging, setIsDragging] = useState(false);
+
+  const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsDragging(true);
+  }, []);
 
   useEffect(() => {
-    if (prevIsRightOpen.current !== isRightOpen) {
-      setIsAnimating(true);
-      const timer = setTimeout(() => setIsAnimating(false), 250);
-      prevIsRightOpen.current = isRightOpen;
-      return () => clearTimeout(timer);
+    if (!isRightOpen) {
+      setRightWidth(60);
+    } else {
+      setRightWidth((prev) => (prev < 600 ? 600 : prev));
     }
   }, [isRightOpen]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newRightWidth = rect.right - e.clientX;
+      const minRight = isRightOpen ? 600 : 60;
+      const maxRight = rect.width - 400; // Left pane minimum size is 400px
+      const clampedWidth = Math.max(minRight, Math.min(maxRight, newRightWidth));
+      setRightWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDragging, isRightOpen]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   /** Extract app names from workflow nodes and match against connectorIcons keys */
@@ -774,7 +807,7 @@ export default function AgentPage() {
 
   return (
     <div className="h-[calc(100vh-4rem)] w-[calc(100%+3rem)] -mx-6 -my-6 flex overflow-hidden bg-background relative">
-      <div className={`h-full w-full flex transition-opacity duration-700 ease-in-out ${isPageReady ? "opacity-100" : "opacity-0 pointer-events-none"} ${isAnimating ? "allotment-animating" : ""}`}>
+      <div className={`h-full w-full flex transition-opacity duration-700 ease-in-out ${isPageReady ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
       {/* Workflow choice dialog */}
       <WorkflowChoiceDialog
         open={showWorkflowChoice}
@@ -814,17 +847,8 @@ export default function AgentPage() {
           setPendingPrompt("");
         }}
       />
-      {/* Global CSS overrides for Allotment dividers and custom morph animations */}
+      {/* Global CSS overrides and custom morph animations */}
       <style>{`
-        [class*="allotment-module_sash"]::after,
-        [class*="sash-module_sash"]::after {
-          background-color: var(--border) !important;
-          width: 1px !important;
-        }
-        [class*="allotment-module_sash"]:hover::after,
-        [class*="sash-module_sash"]:hover::after {
-          background-color: var(--ring) !important;
-        }
         .writing-vertical {
           writing-mode: vertical-rl;
           text-orientation: mixed;
@@ -853,23 +877,11 @@ export default function AgentPage() {
         .animate-shape-morph {
           animation: shapeMorph 10s ease-in-out infinite;
         }
-
-        /* Snappy & smooth cubic-bezier transitions for Allotment layout elements */
-        .allotment-animating [class*="allotment-module_splitViewView"],
-        .allotment-animating [class*="allotment-module_sash"],
-        .allotment-animating [class*="sash-module_sash"] {
-          transition: flex 220ms cubic-bezier(0.16, 1, 0.3, 1), 
-                      min-width 220ms cubic-bezier(0.16, 1, 0.3, 1), 
-                      max-width 220ms cubic-bezier(0.16, 1, 0.3, 1),
-                      width 220ms cubic-bezier(0.16, 1, 0.3, 1),
-                      left 220ms cubic-bezier(0.16, 1, 0.3, 1),
-                      transform 220ms cubic-bezier(0.16, 1, 0.3, 1) !important;
-        }
       `}</style>
 
-      <Allotment>
+      <div ref={containerRef} className="h-full w-full flex relative">
         {/* Left Pane: Agent Chat Space */}
-        <Allotment.Pane minSize={400}>
+        <div className={`h-full flex-1 min-w-[400px] relative overflow-hidden ${isDragging ? "pointer-events-none select-none" : ""}`}>
           <div
             ref={leftPaneRef}
             className="h-full w-full flex flex-col items-center justify-between p-8 bg-background relative overflow-hidden"
@@ -1469,14 +1481,33 @@ export default function AgentPage() {
               </div>
             </div>
           </div>
-        </Allotment.Pane>
+        </div>
+
+        {/* Separator / Sash */}
+        {isPageReady && isRightOpen && (
+          <div
+            onMouseDown={startResizing}
+            className="w-px h-full bg-border relative cursor-col-resize z-40 shrink-0 select-none group"
+          >
+            {/* Grab hit-area */}
+            <div className="absolute top-0 bottom-0 -left-1.5 w-3 h-full" />
+            {/* Visual highlight line */}
+            <div 
+              className={`absolute top-0 bottom-0 -left-[1px] w-[3px] bg-blue-600 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${
+                isDragging ? "opacity-100!" : ""
+              }`}
+            />
+          </div>
+        )}
 
         {/* Right Pane: Workflow Panel — only mount after page is ready */}
         {isPageReady && (
-          <Allotment.Pane
-            minSize={isRightOpen ? 600 : 60}
-            maxSize={isRightOpen ? undefined : 60}
-            preferredSize={isRightOpen ? "50%" : 60}
+          <div 
+            className={`h-full shrink-0 overflow-hidden ${isDragging ? "pointer-events-none select-none" : "transition-[width] duration-300 ease-in-out"}`}
+            style={{ 
+              width: `${rightWidth}px`,
+              maxWidth: isRightOpen ? "calc(100% - 400px)" : undefined
+            }}
           >
             <WorkflowPanel
               isRightOpen={isRightOpen}
@@ -1526,9 +1557,9 @@ export default function AgentPage() {
               workflowTitle={workflowTitle}
               setWorkflowTitle={setWorkflowTitle}
             />
-          </Allotment.Pane>
+          </div>
         )}
-      </Allotment>
+      </div>
       </div>
 
       {/* Centered Loading Overlay */}

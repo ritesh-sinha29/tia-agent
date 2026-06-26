@@ -887,7 +887,7 @@ function AINode({ data }: { data: any }) {
               className="text-[10px] rounded-sm flex items-center justify-center"
               title="Configure app node"
             >
-              Edit <Settings className="h-3.5 w-3.5" />
+              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
@@ -992,7 +992,7 @@ function AINode({ data }: { data: any }) {
             className="text-[10px] rounded-sm flex items-center justify-center"
             title="Configure app node"
           >
-            Edit <Settings className="h-3.5 w-3.5" />
+            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
@@ -1119,7 +1119,7 @@ function AppNode({ data }: { data: any }) {
               className="text-[10px] rounded-sm flex items-center justify-center"
               title="Configure app node"
             >
-              Edit <Settings className="h-3.5 w-3.5" />
+              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
@@ -1255,7 +1255,7 @@ function AppNode({ data }: { data: any }) {
             className="text-[10px] rounded-sm flex items-center justify-center"
             title="Configure app node"
           >
-            Edit <Settings className="h-3.5 w-3.5" />
+            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
@@ -1422,6 +1422,7 @@ export default function FlowPreview({
     null,
   );
   const [dimensions, setDimensions] = useState({ width: 0, height: 600 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1548,8 +1549,6 @@ export default function FlowPreview({
 
   const customEdgeTypes = useMemo(() => ({ straight: StraightEdge }), []);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   // Dynamically calculate ZOOM based on the number of nodes (excluding task_trigger)
   const ZOOM = useMemo(() => {
     const filteredNodes = localNodes.filter(
@@ -1673,7 +1672,26 @@ export default function FlowPreview({
   );
 
   return (
-    <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+    <div className="w-full h-full relative flex items-center justify-center overflow-hidden workflow-panel-container">
+      <style>{`
+        .workflow-panel-container {
+          container-type: inline-size;
+          container-name: workflow;
+        }
+        @container workflow (max-width: 500px) {
+          .node-edit-text {
+            display: none !important;
+          }
+          .bottom-fixes-text,
+          .bottom-separator,
+          .bottom-edit-full {
+            display: none !important;
+          }
+          .bottom-edit-short {
+            display: inline !important;
+          }
+        }
+      `}</style>
       {/* Scrollable Viewport Wrapper */}
       <div
         ref={containerRef}
@@ -1820,16 +1838,17 @@ export default function FlowPreview({
 
       {activeTab === "editor" && hasWorkflow && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 bg-white border border-neutral-200 px-4 py-2 rounded-lg shadow-md animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <span className="text-[11px] font-medium text-neutral-500 flex items-center gap-1.5 select-none">
+          <span className="bottom-fixes-text text-[11px] font-medium text-neutral-500 flex items-center gap-1.5 select-none">
             Want fixes &gt; ask agent to adjust or edit workflow..
           </span>
-          <div className="h-3.5 w-px bg-neutral-200" />
+          <div className="h-3.5 w-px bg-neutral-200 bottom-separator" />
           <Button
             type="button"
             onClick={() => onEditWorkflow?.("edit this workflow as ")}
-            className="text-xs rounded  cursor-pointer py-1"
+            className="text-xs rounded  cursor-pointer py-1 flex items-center justify-center"
           >
-            Edit workflow...
+            <span className="bottom-edit-full">Edit workflow...</span>
+            <span className="bottom-edit-short hidden">Edit</span>
           </Button>
         </div>
       )}
