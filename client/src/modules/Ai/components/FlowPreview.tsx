@@ -51,9 +51,11 @@ interface FlowPreviewProps {
   edges?: any[];
   onChangeNodes?: (nodes: any[]) => void;
   activeTab?: "editor" | "runs";
+  setActiveTab?: (tab: "editor" | "runs") => void;
   isRunning?: boolean;
   nodeStatuses?: Record<string, "pending" | "running" | "success" | "failed">;
   nodeExecutionDurations?: Record<string, number>;
+  isDragging?: boolean;
 }
 
 const AI_MODELS = [
@@ -295,9 +297,14 @@ function AINodePopover({
           <div className="w-[58%] border-r border-neutral-100 p-6 flex flex-col justify-between overflow-y-auto">
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-neutral-800 mb-1">
-                  Prompt
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-neutral-800">
+                    Prompt
+                  </label>
+                  {!prompt.trim() && (
+                    <span className="text-[10px] text-red-500 font-semibold lowercase">Required field</span>
+                  )}
+                </div>
                 <p className="text-[11px] text-neutral-500 mb-2 leading-normal font-medium">
                   Give the model detailed instructions. Insert relevant data for
                   context.{" "}
@@ -305,7 +312,11 @@ function AINodePopover({
                     See examples
                   </span>
                 </p>
-                <div className="border border-neutral-200 rounded-xl bg-neutral-50/50 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+                <div className={`border rounded-xl bg-neutral-50/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all ${
+                  !prompt.trim() 
+                    ? "border-red-300 focus-within:border-red-400" 
+                    : "border-neutral-200 focus-within:border-blue-400"
+                }`}>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
@@ -680,21 +691,31 @@ function AppNodePopover({
               Parameters Mapping
             </label>
             <div className="space-y-3">
-              {Object.entries(params).map(([key, val]) => (
-                <div key={key}>
-                  <label className="block text-[11px] text-neutral-500 mb-1 font-medium capitalize">
-                    {key.replace(/_/g, " ")}
-                  </label>
-                  <input
-                    type="text"
-                    value={val}
-                    onChange={(e) =>
-                      setParams((p) => ({ ...p, [key]: e.target.value }))
-                    }
-                    className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-mono"
-                  />
-                </div>
-              ))}
+              {Object.entries(params).map(([key, val]) => {
+                const isEmpty = !val || !val.trim();
+                return (
+                  <div key={key}>
+                    <label className="block text-[11px] text-neutral-500 mb-1 font-medium capitalize flex justify-between">
+                      <span>{key.replace(/_/g, " ")}</span>
+                      {isEmpty && (
+                        <span className="text-[10px] text-red-500 font-semibold lowercase">Required field</span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={val}
+                      onChange={(e) =>
+                        setParams((p) => ({ ...p, [key]: e.target.value }))
+                      }
+                      className={`w-full rounded-xl border bg-neutral-50 px-4 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-mono ${
+                        isEmpty 
+                          ? "border-red-300 focus:border-red-400" 
+                          : "border-neutral-200 focus:border-blue-400"
+                      }`}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -731,7 +752,7 @@ function TriggerNode({ data }: { data: any }) {
   const isFirst = data._isFirst !== false;
   if (isFirst) {
     return (
-      <div className="w-[450px] rounded-xl border-2 border-blue-500 bg-blue-600 shadow-lg shadow-blue-500/25 px-4 py-3.5 select-none cursor-default">
+      <div style={{ width: data.width ? `${data.width}px` : "450px" }} className="rounded-xl border-2 border-blue-500 bg-blue-600 shadow-lg shadow-blue-500/25 px-4 py-3.5 select-none cursor-default">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-md bg-white/20 flex items-center justify-center">
@@ -777,7 +798,7 @@ function TriggerNode({ data }: { data: any }) {
   }
 
   return (
-    <div className="w-[450px] rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3.5 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
+    <div style={{ width: data.width ? `${data.width}px` : "450px" }} className="rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3.5 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-md bg-white border border-neutral-200 flex items-center justify-center shrink-0">
@@ -839,19 +860,19 @@ function AINode({ data }: { data: any }) {
 
   if (isFirst) {
     return (
-      <div className="w-[500px] rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default">
+      <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default">
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded bg-white flex items-center justify-center border shrink-0">
+            <div className="h-6 w-6 rounded bg-white flex items-center justify-center border shrink-0 node-logo-wrapper">
               <Image
                 src="/logo.svg"
                 alt="AI"
                 width={14}
                 height={14}
-                className="object-contain invert"
+                className="object-contain invert node-logo-img"
               />
             </div>
-            <span className="text-sm font-semibold uppercase text-neutral-800">
+            <span className="text-sm font-semibold uppercase text-neutral-800 node-header-title">
               AI Agent
             </span>
           </div>
@@ -863,10 +884,10 @@ function AINode({ data }: { data: any }) {
                 </span>
               )}
               {data.status === "running" && (
-                <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin node-status-icon" />
               )}
               {data.status === "success" && (
-                <Check className="h-3.5 w-3.5 text-emerald-600 font-bold" />
+                <Check className="h-3.5 w-3.5 text-emerald-600 font-bold node-status-icon" />
               )}
               {data.status === "failed" && (
                 <X className="h-3.5 w-3.5 text-red-600 font-bold" />
@@ -884,24 +905,31 @@ function AINode({ data }: { data: any }) {
                 e.stopPropagation();
                 data.onOpenSettings?.();
               }}
-              className="text-[10px] rounded-sm flex items-center justify-center"
+              className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
               title="Configure app node"
             >
-              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
+              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
             </Button>
           )}
         </div>
-        <h4 className="font-semibold text-xs text-neutral-800 leading-snug truncate">
+        <h4 className="font-semibold text-xs text-neutral-800 leading-snug truncate node-label-title">
           {data.label}
         </h4>
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-[10px] text-blue-700 bg-blue-200/50 border border-blue-300 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px]">
+          <span className="text-[10px] text-blue-700 bg-blue-200/50 border border-blue-300 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px] node-action-badge">
             {typeTag}
           </span>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-[10px] text-blue-700 font-medium">
-              Model: {data.ai_config?.model || "gpt-4.1-nano"}
-            </div>
+          <div className="flex items-center gap-2 node-meta-text">
+            {data.errors && data.errors.length > 0 ? (
+              <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold node-meta-text">
+                <AlertCircle className="size-3.5 text-red-600 node-meta-icon" />
+                <span>Missing prompt</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-[10px] text-blue-700 font-medium node-meta-text">
+                Model: {data.ai_config?.model || "gpt-4.1-nano"}
+              </div>
+            )}
             {data.isRunsTab && data.traceResult && (
               <Popover>
                 <PopoverTrigger asChild>
@@ -909,9 +937,9 @@ function AINode({ data }: { data: any }) {
                     type="button"
                     variant={"outline"}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] h-6 px-2 bg-white/85 text-blue-700 border-blue-300/40 hover:bg-white flex items-center gap-1 cursor-pointer"
+                    className="text-[10px] h-6 px-2 bg-white/85 text-blue-700 border-blue-300/40 hover:bg-white flex items-center gap-1 cursor-pointer node-edit-btn"
                   >
-                    Trace Result <Eye className="size-3" />
+                    Trace Result <Eye className="size-3 node-edit-icon" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
@@ -934,6 +962,16 @@ function AINode({ data }: { data: any }) {
             )}
           </div>
         </div>
+        {data.errors && data.errors.length > 0 && (
+          <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[10px] text-red-700 flex flex-col gap-1 node-error-container">
+            {data.errors.map((err: string, i: number) => (
+              <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 node-error-icon" />
+                {err}
+              </span>
+            ))}
+          </div>
+        )}
         <Handle
           type="source"
           position={Position.Bottom}
@@ -944,19 +982,19 @@ function AINode({ data }: { data: any }) {
   }
 
   return (
-    <div className="w-[500px] rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
+    <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded border bg-white flex items-center justify-center shrink-0">
+          <div className="h-6 w-6 rounded border bg-white flex items-center justify-center shrink-0 node-logo-wrapper">
             <Image
               src="/logo.svg"
               alt="AI"
               width={13}
               height={13}
-              className="object-contain invert"
+              className="object-contain invert node-logo-img"
             />
           </div>
-          <span className="text-sm font-semibold uppercase text-neutral-800">
+          <span className="text-sm font-semibold uppercase text-neutral-800 node-header-title">
             AI Agent
           </span>
         </div>
@@ -968,10 +1006,10 @@ function AINode({ data }: { data: any }) {
               </span>
             )}
             {data.status === "running" && (
-              <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin node-status-icon" />
             )}
             {data.status === "success" && (
-              <Check className="h-3.5 w-3.5 text-emerald-600 font-bold" />
+              <Check className="h-3.5 w-3.5 text-emerald-600 font-bold node-status-icon" />
             )}
             {data.status === "failed" && (
               <X className="h-3.5 w-3.5 text-red-600 font-bold" />
@@ -989,24 +1027,31 @@ function AINode({ data }: { data: any }) {
               e.stopPropagation();
               data.onOpenSettings?.();
             }}
-            className="text-[10px] rounded-sm flex items-center justify-center"
+            className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
             title="Configure app node"
           >
-            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
+            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
           </Button>
         )}
       </div>
-      <h4 className="font-semibold text-xs text-neutral-800 leading-snug truncate">
+      <h4 className="font-semibold text-xs text-neutral-800 leading-snug truncate node-label-title">
         {data.label}
       </h4>
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-[10px] text-neutral-700 bg-neutral-200/60 border border-neutral-300 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px]">
+        <span className="text-[10px] text-neutral-700 bg-neutral-200/60 border border-neutral-300 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px] node-action-badge">
           {typeTag}
         </span>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-[10px] text-neutral-500">
-            Model: {data.ai_config?.model || "gpt-4.1-nano"}
-          </div>
+        <div className="flex items-center gap-2 node-meta-text">
+          {data.errors && data.errors.length > 0 ? (
+            <div className="flex items-center gap-1 text-[10px] text-red-600 font-semibold node-meta-text">
+              <AlertCircle className="size-3.5 text-red-500 node-meta-icon" />
+              <span>Missing prompt</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-[10px] text-neutral-500 node-meta-text">
+              Model: {data.ai_config?.model || "gpt-4.1-nano"}
+            </div>
+          )}
           {data.isRunsTab && data.traceResult && (
             <Popover>
               <PopoverTrigger asChild>
@@ -1014,9 +1059,9 @@ function AINode({ data }: { data: any }) {
                   type="button"
                   variant={"outline"}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[10px] h-6 px-2 cursor-pointer flex items-center gap-1"
+                  className="text-[10px] h-6 px-2 cursor-pointer flex items-center gap-1 node-edit-btn"
                 >
-                  Trace Result <Eye className="size-3" />
+                  Trace Result <Eye className="size-3 node-edit-icon" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -1039,6 +1084,16 @@ function AINode({ data }: { data: any }) {
           )}
         </div>
       </div>
+      {data.errors && data.errors.length > 0 && (
+        <div className="mt-2.5 pt-2 border-t border-neutral-200 text-[10px] text-red-600 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 node-error-container">
+          {data.errors.map((err: string, i: number) => (
+            <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 node-error-icon" />
+              {err}
+            </span>
+          ))}
+        </div>
+      )}
       <Handle
         type="target"
         position={Position.Top}
@@ -1073,19 +1128,19 @@ function AppNode({ data }: { data: any }) {
 
   if (isFirst) {
     return (
-      <div className="w-[500px] rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default">
+      <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default">
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 justify-center items-center flex border rounded bg-white shrink-0">
+            <div className="h-6 w-6 justify-center items-center flex border rounded bg-white shrink-0 node-logo-wrapper">
               <Image
                 src={iconSrc}
                 alt={appName}
                 width={18}
                 height={18}
-                className="object-contain"
+                className="object-contain node-logo-img"
               />
             </div>
-            <span className="text-sm font-semibold uppercase">{appName}</span>
+            <span className="text-sm font-semibold uppercase node-header-title">{appName}</span>
           </div>
           {data.isRunsTab ? (
             <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
@@ -1095,10 +1150,10 @@ function AppNode({ data }: { data: any }) {
                 </span>
               )}
               {data.status === "running" && (
-                <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin node-status-icon" />
               )}
               {data.status === "success" && (
-                <Check className="h-3.5 w-3.5 text-emerald-600 font-bold" />
+                <Check className="h-3.5 w-3.5 text-emerald-600 font-bold node-status-icon" />
               )}
               {data.status === "failed" && (
                 <X className="h-3.5 w-3.5 text-red-600 font-bold" />
@@ -1116,167 +1171,30 @@ function AppNode({ data }: { data: any }) {
                 e.stopPropagation();
                 data.onOpenSettings?.();
               }}
-              className="text-[10px] rounded-sm flex items-center justify-center"
+              className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
               title="Configure app node"
             >
-              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
+              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
             </Button>
           )}
         </div>
-        <h4 className="font-semibold text-xs leading-snug truncate">
+        <h4 className="font-semibold text-xs leading-snug truncate node-label-title">
           {data.label}
         </h4>
         {actionName && (
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px]">
+            <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px] node-action-badge">
               {actionName}
             </span>
-            {data.isRunsTab ? (
-              data.errors && data.errors.length > 0 ? (
-                <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold">
-                  <AlertCircle className="size-3.5 text-red-600" />
-                  <span>Missing parameter</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 text-[10px] text-emerald-700 font-medium">
-                    <Check className="size-3.5 text-emerald-600" />
-                    <span>All params configured</span>
-                  </div>
-                  {data.traceResult && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant={"outline"}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] p-1.5! ml-2 cursor-pointer"
-                        >
-                          Trace Result <Eye className="size-3.5" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-96 p-4 rounded-xl border border-neutral-200 bg-white shadow-xl z-[9999]"
-                        align="end"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between border-b pb-2">
-                            <span className="font-semibold text-xs text-neutral-900">
-                              Execution Trace Result
-                            </span>
-                          </div>
-                          <pre className="text-[10px] bg-neutral-50 p-2.5 rounded-lg border border-neutral-200 overflow-x-auto overflow-y-auto max-h-60 font-mono text-neutral-800 leading-relaxed max-w-full whitespace-pre-wrap">
-                            {JSON.stringify(data.traceResult, null, 2)}
-                          </pre>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-              )
-            ) : (
-              paramCount > 0 && (
-                <div className="flex items-center gap-1 text-[10px] ">
-                  {paramCount} paramter{paramCount !== 1 ? "s" : ""}{" "}
-                  <Settings2 className="text-muted-foreground size-4" />
-                </div>
-              )
-            )}
-          </div>
-        )}
-        {data.isRunsTab &&
-          data.errors &&
-          data.errors.length > 0 &&
-          !data.isSimulationActive && (
-            <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[10px] text-red-700 flex flex-col gap-1">
-              {data.errors.map((err: string, i: number) => (
-                <span key={i} className="flex items-center gap-1 font-semibold">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
-                  {err}
-                </span>
-              ))}
-            </div>
-          )}
-        {/* <Handle type="target" position={Position.Top} className="" /> */}
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="!w-2 !h-2"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-[500px] rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded bg-white border flex items-center justify-center shrink-0">
-            <Image
-              src={iconSrc}
-              alt={appName}
-              width={18}
-              height={18}
-              className="object-contain"
-            />
-          </div>
-          <span className="text-sm font-semibold uppercase">{appName}</span>
-        </div>
-        {data.isRunsTab ? (
-          <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
-            {data.duration !== undefined && data.status !== "pending" && (
-              <span className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}>
-                {data.duration}s
-              </span>
-            )}
-            {data.status === "running" && (
-              <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
-            )}
-            {data.status === "success" && (
-              <Check className="h-3.5 w-3.5 text-emerald-600 font-bold" />
-            )}
-            {data.status === "failed" && (
-              <X className="h-3.5 w-3.5 text-red-600 font-bold" />
-            )}
-            {data.status === "pending" && (
-              <div className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
-            )}
-          </div>
-        ) : (
-          <Button
-            type="button"
-            size={"xs"}
-            variant={"default"}
-            onClick={(e) => {
-              e.stopPropagation();
-              data.onOpenSettings?.();
-            }}
-            className="text-[10px] rounded-sm flex items-center justify-center"
-            title="Configure app node"
-          >
-            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
-      <h4 className="font-semibold text-xs text-neutral-800 leading-snug truncate">
-        {data.label}
-      </h4>
-      {actionName && (
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-[10px] text-neutral-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px]">
-            {actionName}
-          </span>
-          {data.isRunsTab ? (
-            data.errors && data.errors.length > 0 ? (
-              <div className="flex items-center gap-1 text-[10px] text-red-600 font-semibold">
-                <AlertCircle className="size-3.5 text-red-500" />
+            {data.errors && data.errors.length > 0 ? (
+              <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold node-meta-text">
+                <AlertCircle className="size-3.5 text-red-600 node-meta-icon" />
                 <span>Missing parameter</span>
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-                  <Check className="size-3.5 text-emerald-500" />
+            ) : data.isRunsTab ? (
+              <div className="flex items-center gap-2 node-meta-text">
+                <div className="flex items-center gap-1 text-[10px] text-emerald-700 font-medium node-meta-text">
+                  <Check className="size-3.5 text-emerald-600 node-meta-icon" />
                   <span>All params configured</span>
                 </div>
                 {data.traceResult && (
@@ -1286,9 +1204,9 @@ function AppNode({ data }: { data: any }) {
                         type="button"
                         variant={"outline"}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] p-1.5! ml-2 cursor-pointer"
+                        className="text-[10px] p-1.5! ml-2 cursor-pointer node-edit-btn"
                       >
-                        Trace Result <Eye className="size-3.5" />
+                        Trace Result <Eye className="size-3.5 node-edit-icon" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -1310,30 +1228,160 @@ function AppNode({ data }: { data: any }) {
                   </Popover>
                 )}
               </div>
-            )
+            ) : (
+              paramCount > 0 && (
+                <div className="flex items-center gap-1 text-[10px] node-meta-text">
+                  {paramCount} paramter{paramCount !== 1 ? "s" : ""}{" "}
+                  <Settings2 className="text-muted-foreground size-4 node-meta-icon" />
+                </div>
+              )
+            )}
+          </div>
+        )}
+        {data.errors &&
+          data.errors.length > 0 &&
+          !data.isSimulationActive && (
+            <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[10px] text-red-700 flex flex-col gap-1 node-error-container">
+              {data.errors.map((err: string, i: number) => (
+                <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 node-error-icon" />
+                  {err}
+                </span>
+              ))}
+            </div>
+          )}
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!w-2 !h-2"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-white border flex items-center justify-center shrink-0 node-logo-wrapper">
+            <Image
+              src={iconSrc}
+              alt={appName}
+              width={18}
+              height={18}
+              className="object-contain node-logo-img"
+            />
+          </div>
+          <span className="text-sm font-semibold uppercase node-header-title">{appName}</span>
+        </div>
+        {data.isRunsTab ? (
+          <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
+            {data.duration !== undefined && data.status !== "pending" && (
+              <span className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}>
+                {data.duration}s
+              </span>
+            )}
+            {data.status === "running" && (
+              <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin node-status-icon" />
+            )}
+            {data.status === "success" && (
+              <Check className="h-3.5 w-3.5 text-emerald-600 font-bold node-status-icon" />
+            )}
+            {data.status === "failed" && (
+              <X className="h-3.5 w-3.5 text-red-600 font-bold" />
+            )}
+            {data.status === "pending" && (
+              <div className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+            )}
+          </div>
+        ) : (
+          <Button
+            type="button"
+            size={"xs"}
+            variant={"default"}
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onOpenSettings?.();
+            }}
+            className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
+            title="Configure app node"
+          >
+            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
+          </Button>
+        )}
+      </div>
+      <h4 className="font-semibold text-xs text-neutral-800 leading-snug truncate node-label-title">
+        {data.label}
+      </h4>
+      {actionName && (
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-[10px] text-neutral-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px] node-action-badge">
+            {actionName}
+          </span>
+          {data.errors && data.errors.length > 0 ? (
+            <div className="flex items-center gap-1 text-[10px] text-red-600 font-semibold node-meta-text">
+              <AlertCircle className="size-3.5 text-red-500 node-meta-icon" />
+              <span>Missing parameter</span>
+            </div>
+          ) : data.isRunsTab ? (
+            <div className="flex items-center gap-2 node-meta-text">
+              <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold node-meta-text">
+                <Check className="size-3.5 text-emerald-500 node-meta-icon" />
+                <span>All params configured</span>
+              </div>
+              {data.traceResult && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant={"outline"}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[10px] p-1.5! ml-2 cursor-pointer node-edit-btn"
+                    >
+                      Trace Result <Eye className="size-3.5 node-edit-icon" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-96 p-4 rounded-xl border border-neutral-200 bg-white shadow-xl z-[9999]"
+                    align="end"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <span className="font-semibold text-xs text-neutral-900">
+                          Execution Trace Result
+                        </span>
+                      </div>
+                      <pre className="text-[10px] bg-neutral-50 p-2.5 rounded-lg border border-neutral-200 overflow-x-auto overflow-y-auto max-h-60 font-mono text-neutral-800 leading-relaxed max-w-full whitespace-pre-wrap">
+                        {JSON.stringify(data.traceResult, null, 2)}
+                      </pre>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
           ) : (
             paramCount > 0 && (
-              <div className="flex items-center gap-1 text-[10px] ">
+              <div className="flex items-center gap-1 text-[10px] node-meta-text">
                 {paramCount} paramter{paramCount !== 1 ? "s" : ""}{" "}
-                <Settings2 className="text-muted-foreground size-4" />
+                <Settings2 className="text-muted-foreground size-4 node-meta-icon" />
               </div>
             )
           )}
         </div>
       )}
-      {/* {data.isRunsTab &&
-        data.errors &&
+      {data.errors &&
         data.errors.length > 0 &&
         !data.isSimulationActive && (
-          <div className="mt-2.5 pt-2 border-t border-neutral-200 text-[10px] text-red-600 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="mt-2.5 pt-2 border-t border-neutral-200 text-[10px] text-red-600 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 node-error-container">
             {data.errors.map((err: string, i: number) => (
-              <span key={i} className="flex items-center gap-1 font-semibold">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+              <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 node-error-icon" />
                 {err}
               </span>
             ))}
           </div>
-        )} */}
+        )}
       <Handle
         type="target"
         position={Position.Top}
@@ -1365,41 +1413,25 @@ function StraightEdge({ id, sourceX, sourceY, targetX, targetY }: any) {
 // ─── Auto Fit ─────────────────────────────────────────────────────────────────
 
 function FlowFitter({
-  nodes,
-  containerRef,
   zoom,
-  width,
 }: {
-  nodes: any[];
-  containerRef: React.RefObject<HTMLDivElement | null>;
   zoom: number;
-  width: number;
 }) {
   const { setViewport } = useReactFlow();
   const isInitial = useRef(true);
 
   useEffect(() => {
-    if (nodes && nodes.length > 0 && containerRef.current) {
-      const alignViewport = () => {
-        const rect = containerRef.current?.getBoundingClientRect();
-        if (rect) {
-          const nodeWidth = 500;
-          // Center horizontally taking zoom into account
-          const x = (rect.width - nodeWidth * zoom) / 2;
-          // Start from y = 0 since vertical padding is already computed in node coordinates
-          setViewport({ x, y: 0, zoom });
-        }
-      };
-
-      if (isInitial.current) {
-        isInitial.current = false;
-        const t = setTimeout(alignViewport, 100);
-        return () => clearTimeout(t);
-      } else {
-        alignViewport();
-      }
+    if (isInitial.current) {
+      isInitial.current = false;
+      const t = setTimeout(() => {
+        setViewport({ x: 0, y: 0, zoom });
+      }, 100);
+      return () => clearTimeout(t);
+    } else {
+      setViewport({ x: 0, y: 0, zoom });
     }
-  }, [nodes, setViewport, containerRef, zoom, width]);
+  }, [setViewport, zoom]);
+
   return null;
 }
 
@@ -1412,9 +1444,11 @@ export default function FlowPreview({
   edges,
   onChangeNodes,
   activeTab = "editor",
+  setActiveTab,
   isRunning = false,
   nodeStatuses = {},
   nodeExecutionDurations = {},
+  isDragging = false,
 }: FlowPreviewProps) {
   const [currentRecipes, setCurrentRecipes] = useState<typeof recipes>([]);
   const [localNodes, setLocalNodes] = useState<any[]>([]);
@@ -1423,20 +1457,34 @@ export default function FlowPreview({
   );
   const [dimensions, setDimensions] = useState({ width: 0, height: 600 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    let rAFId: number;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setDimensions({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
+        const { width, height } = entry.contentRect;
+        if (isDragging || width === 0 || dimensions.width === 0) {
+          cancelAnimationFrame(rAFId);
+          rAFId = requestAnimationFrame(() => {
+            setDimensions({ width, height });
+          });
+        } else {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            setDimensions({ width, height });
+          }, 300);
+        }
       }
     });
     observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(rAFId);
+      clearTimeout(timeoutRef.current);
+    };
+  }, [isDragging, dimensions.width]);
   const handleSuggestNew = () => {
     const shuffled = [...recipes].sort(() => 0.5 - Math.random());
     setCurrentRecipes(shuffled.slice(0, 3));
@@ -1570,7 +1618,6 @@ export default function FlowPreview({
     const N = filteredNodes.length;
     const H = dimensions.height || 600;
 
-    const nodeHeight = 100;
     const topPadding = 40;
     const bottomPadding = 160;
 
@@ -1578,44 +1625,22 @@ export default function FlowPreview({
     const canvasH = H / ZOOM;
     const viewportAvailableHeight = Math.max(200, canvasH - topPadding - bottomPadding);
 
-    let gap = 140;
-    let startY = topPadding;
-    let computedCanvasHeight = H;
-    let scrollRequired = false;
+    const nodeCanvasWidth = Math.min(500, Math.max(280, (dimensions.width - 32) / ZOOM));
 
-    if (N > 0) {
-      if (N <= 4) {
-        if (N === 1) {
-          startY = topPadding + (viewportAvailableHeight - nodeHeight) / 2;
-          gap = 0;
-        } else {
-          // Cap gap to 160 to prevent too sparse nodes
-          gap = Math.min(160, (viewportAvailableHeight - nodeHeight) / (N - 1));
-          const totalNodesHeight = (N - 1) * gap + nodeHeight;
-          startY = topPadding + (viewportAvailableHeight - totalNodesHeight) / 2;
-        }
-        computedCanvasHeight = H;
-        scrollRequired = false;
-      } else {
-        // More than 4 nodes: exactly 4 nodes visible in viewport height H
-        gap = (viewportAvailableHeight - nodeHeight) / 3;
-        startY = topPadding;
-
-        // Total height in ReactFlow coordinate space
-        const totalCanvasHeight = topPadding + (N - 1) * gap + nodeHeight + bottomPadding;
-        // Convert back to screen pixels for CSS
-        computedCanvasHeight = totalCanvasHeight * ZOOM;
-        scrollRequired = true;
-      }
+    // Pre-calculate errors and heights for all nodes to compute proper spacing
+    interface PreparedNode {
+      node: any;
+      errors: string[];
+      height: number;
     }
 
-    const nodesList = filteredNodes.map((node, index) => {
+    const preparedNodes: PreparedNode[] = filteredNodes.map((node) => {
       const errors: string[] = [];
       const nodeType = node.type || "";
       if (nodeType.startsWith("ai_")) {
         const prompt = node.data?.ai_config?.prompt;
         if (!prompt || !prompt.trim()) {
-          errors.push("prompt is empty");
+          errors.push("System Prompt is empty");
         }
       } else if (nodeType === "composio_app") {
         const params = node.data?.composio_config?.params_mapping || {};
@@ -1629,25 +1654,80 @@ export default function FlowPreview({
         });
       }
 
+      // Base node height is 100px. If errors are present and we are not in running simulation,
+      // we render the error container which adds 20px padding/border and 20px per error message.
+      const hasErrors = errors.length > 0 && !isRunning;
+      const height = hasErrors ? (100 + 20 + errors.length * 20) : 100;
+
+      return { node, errors, height };
+    });
+
+    const totalNodesHeight = preparedNodes.reduce((sum, item) => sum + item.height, 0);
+
+    let gap = 40;
+    let startY = topPadding;
+    let computedCanvasHeight = H;
+    let scrollRequired = false;
+
+    if (N > 0) {
+      if (N === 1) {
+        startY = topPadding + Math.max(0, viewportAvailableHeight - preparedNodes[0].height) / 2;
+        gap = 0;
+      } else {
+        const minGap = 40;
+        const totalMinGapsHeight = (N - 1) * minGap;
+        if (totalNodesHeight + totalMinGapsHeight <= viewportAvailableHeight) {
+          // All nodes fit within viewportAvailableHeight, distribute extra space evenly
+          const remainingSpace = viewportAvailableHeight - totalNodesHeight;
+          gap = Math.min(120, remainingSpace / (N - 1));
+          startY = topPadding + (remainingSpace - (N - 1) * gap) / 2;
+          computedCanvasHeight = H;
+          scrollRequired = false;
+        } else {
+          // Total height exceeds viewport, use minimum gap and enable scroll
+          gap = minGap;
+          startY = topPadding;
+
+          let currentY = startY;
+          preparedNodes.forEach((item, index) => {
+            currentY += item.height;
+            if (index < N - 1) currentY += gap;
+          });
+          const totalCanvasHeight = currentY + bottomPadding;
+          computedCanvasHeight = totalCanvasHeight * ZOOM;
+          scrollRequired = true;
+        }
+      }
+    }
+
+    const nodeX = (dimensions.width / ZOOM - nodeCanvasWidth) / 2;
+
+    // Assign final positions based on sequential offsets
+    let currentY = startY;
+    const nodesList = preparedNodes.map((item, index) => {
+      const nodePos = currentY;
+      currentY += item.height + gap;
+
       return {
-        ...node,
+        ...item.node,
         data: {
-          ...node.data,
+          ...item.node.data,
           _isFirst: index === 0,
-          onOpenSettings: () => setActivePopoverNodeId(node.id),
+          onOpenSettings: () => setActivePopoverNodeId(item.node.id),
           isRunsTab: activeTab === "runs",
           isSimulationActive: isRunning,
-          status: nodeStatuses?.[node.id] || "pending",
-          duration: nodeDurations?.[node.id],
-          traceResult: node.data?.traceResult,
-          errors,
+          status: nodeStatuses?.[item.node.id] || "pending",
+          duration: nodeDurations?.[item.node.id],
+          traceResult: item.node.data?.traceResult,
+          errors: item.errors,
+          width: nodeCanvasWidth,
         },
-        position: { x: 0, y: startY + index * gap },
+        position: { x: nodeX, y: nodePos },
       };
     });
 
     return { renderedNodes: nodesList, canvasHeight: computedCanvasHeight, isScrollable: scrollRequired };
-  }, [localNodes, activeTab, isRunning, nodeStatuses, nodeDurations, dimensions.height, ZOOM]);
+  }, [localNodes, activeTab, isRunning, nodeStatuses, nodeDurations, dimensions.width, dimensions.height, ZOOM]);
 
   // Force all edges to use straight type and filter out ones connected to task_trigger
   const renderedEdges = useMemo(() => {
@@ -1690,12 +1770,138 @@ export default function FlowPreview({
           .bottom-edit-short {
             display: inline !important;
           }
+          .workflow-warning-text,
+          .workflow-warning-sep,
+          .workflow-warning-btn-full {
+            display: none !important;
+          }
+          .workflow-warning-btn-short {
+            display: inline !important;
+          }
+        }
+
+        /* Responsive scaling for node components based on canvas width */
+        .react-flow__node {
+          transition: width 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+          will-change: transform, width;
+        }
+        .scrollbar-none::-webkit-scrollbar {
+          display: none !important;
+        }
+        .scrollbar-none {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
+        .node-header-title {
+          font-size: 15px !important;
+        }
+        .node-label-title {
+          font-size: 13px !important;
+        }
+        .node-action-badge {
+          font-size: 11px !important;
+        }
+        .node-meta-text,
+        .node-meta-text div,
+        .node-meta-text span {
+          font-size: 11px !important;
+        }
+        .node-edit-btn {
+          font-size: 11px !important;
+          padding: 3px 8px !important;
+          height: auto !important;
+        }
+        .node-edit-icon {
+          width: 14px !important;
+          height: 14px !important;
+        }
+        .node-logo-wrapper {
+          width: 24px !important;
+          height: 24px !important;
+        }
+        .node-logo-img {
+          width: 75% !important;
+          height: 75% !important;
+        }
+        .node-status-icon,
+        .node-meta-icon {
+          width: 14px !important;
+          height: 14px !important;
+        }
+        .node-error-container {
+          padding-top: 8px !important;
+          margin-top: 10px !important;
+        }
+        .node-error-item {
+          font-size: 11px !important;
+          gap: 4px !important;
+        }
+        .node-error-icon {
+          width: 14px !important;
+          height: 14px !important;
+        }
+
+        /* Narrow view adjustments */
+        @container workflow (max-width: 480px) {
+          .node-header-title {
+            font-size: 13px !important;
+          }
+          .node-label-title {
+            font-size: 11.5px !important;
+          }
+          .node-action-badge {
+            font-size: 10px !important;
+          }
+          .node-meta-text,
+          .node-meta-text div,
+          .node-meta-text span,
+          .node-error-item {
+            font-size: 9.5px !important;
+          }
+          .node-logo-wrapper {
+            width: 20px !important;
+            height: 20px !important;
+          }
+          .node-status-icon,
+          .node-meta-icon,
+          .node-error-icon {
+            width: 12px !important;
+            height: 12px !important;
+          }
+        }
+
+        @container workflow (max-width: 380px) {
+          .node-header-title {
+            font-size: 12px !important;
+          }
+          .node-label-title {
+            font-size: 10.5px !important;
+          }
+          .node-action-badge {
+            font-size: 9px !important;
+          }
+          .node-meta-text,
+          .node-meta-text div,
+          .node-meta-text span,
+          .node-error-item {
+            font-size: 9px !important;
+          }
+          .node-logo-wrapper {
+            width: 18px !important;
+            height: 18px !important;
+          }
+          .node-status-icon,
+          .node-meta-icon,
+          .node-error-icon {
+            width: 11px !important;
+            height: 11px !important;
+          }
         }
       `}</style>
       {/* Scrollable Viewport Wrapper */}
       <div
         ref={containerRef}
-        className={`absolute inset-0 z-0 bg-white overflow-x-hidden scrollbar-thin select-none ${
+        className={`absolute inset-0 z-0 bg-white overflow-x-hidden scrollbar-none select-none ${
           isScrollable ? "overflow-y-auto" : "overflow-y-hidden"
         }`}
       >
@@ -1718,7 +1924,7 @@ export default function FlowPreview({
             selectionOnDrag={false}
           >
             <Background gap={24} size={1} color="#e5e5e5" />
-            <FlowFitter nodes={renderedNodes} containerRef={containerRef} zoom={ZOOM} width={dimensions.width} />
+            <FlowFitter zoom={ZOOM} />
 
             {/* Arrow marker */}
             <svg style={{ position: "absolute", width: 0, height: 0 }}>
@@ -1777,7 +1983,7 @@ export default function FlowPreview({
 
       {/* Recipe suggestions — shown only if no workflow loaded */}
       {!hasWorkflow && (
-        <div className="relative max-w-md w-full border border-neutral-200 shadow rounded-md p-4 bg-neutral-50 select-none mx-4">
+        <div className="relative max-w-md w-[calc(100%-48px)] border border-neutral-200 shadow rounded-md p-4 bg-neutral-50 select-none mx-6 my-6">
           <div className="flex items-start gap-3 mb-4">
             <div className="h-9 w-9 rounded-xl bg-neutral-900 flex items-center justify-center shrink-0">
               <svg viewBox="0 0 36 48" width="16" height="20" fill="white">
@@ -1857,24 +2063,25 @@ export default function FlowPreview({
         hasWorkflow &&
         hasMissingParams &&
         !isRunning && (
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-lg border border-red-200 bg-white px-4 py-2 shadow-md animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-lg border border-red-200 bg-white px-4 py-2 shadow-md animate-in fade-in slide-in-from-bottom-2 duration-300 workflow-warning-box">
             <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
 
-            <span className="text-xs text-neutral-600">
+            <span className="text-xs text-neutral-600 workflow-warning-text">
               Some workflow nodes are missing required parameters.
             </span>
 
-            <div className="h-4 w-px bg-neutral-200" />
+            <div className="h-4 w-px bg-neutral-200 workflow-warning-sep" />
 
             <Button
               size="sm"
               variant="outline"
-              className="h-6 text-xs rounded-sm"
+              className="h-6 text-xs rounded-sm workflow-warning-btn"
               onClick={() => {
-                // on click back to editor
+                setActiveTab?.("editor");
               }}
             >
-              Go to Editor
+              <span className="workflow-warning-btn-full">Go to Editor</span>
+              <span className="workflow-warning-btn-short hidden">Editor</span>
             </Button>
           </div>
         )}

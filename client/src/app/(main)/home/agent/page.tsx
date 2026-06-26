@@ -83,7 +83,7 @@ export default function AgentPage() {
   const [selectedModel, setSelectedModel] = useState("claude-sonnet-3.5");
   const [activeTab, setActiveTab] = useState<"editor" | "runs">("editor");
   const [isReadWriteActive, setIsReadWriteActive] = useState(true);
-  const [paneWidth, setPaneWidth] = useState(800);
+  const [isNarrow, setIsNarrow] = useState(false);
   const [selectedSuggestionApps, setSelectedSuggestionApps] = useState<
     string[]
   >([]);
@@ -112,21 +112,33 @@ export default function AgentPage() {
   const [pendingPrompt, setPendingPrompt] = useState("");
   const [isEditingWorkflow, setIsEditingWorkflow] = useState(false);
 
-  // Custom Resizer States for industry-level, lightweight, and robust resizing
+  // Custom Resizer States for industry-level, lightweight, and robust resizing (pure DOM style updates for 60fps drag)
   const containerRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
   const [rightWidth, setRightWidth] = useState(600); // Default to original 600px width
   const [isDragging, setIsDragging] = useState(false);
+  const lastWidthRef = useRef(600);
 
   const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
     mouseDownEvent.preventDefault();
+    lastWidthRef.current = rightWidth;
     setIsDragging(true);
-  }, []);
+  }, [rightWidth]);
 
   useEffect(() => {
     if (!isRightOpen) {
       setRightWidth(60);
+      if (rightPanelRef.current) {
+        rightPanelRef.current.style.width = "60px";
+      }
     } else {
-      setRightWidth((prev) => (prev < 600 ? 600 : prev));
+      setRightWidth((prev) => {
+        const next = prev < 600 ? 600 : prev;
+        if (rightPanelRef.current) {
+          rightPanelRef.current.style.width = `${next}px`;
+        }
+        return next;
+      });
     }
   }, [isRightOpen]);
 
@@ -137,14 +149,19 @@ export default function AgentPage() {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const newRightWidth = rect.right - e.clientX;
-      const minRight = isRightOpen ? 600 : 60;
-      const maxRight = rect.width - 400; // Left pane minimum size is 400px
+      const minRight = isRightOpen ? 380 : 60; // Keep the original min-width limit of 380px
+      const maxRight = rect.width - 350; // Left pane minimum size is 350px
       const clampedWidth = Math.max(minRight, Math.min(maxRight, newRightWidth));
-      setRightWidth(clampedWidth);
+      
+      lastWidthRef.current = clampedWidth;
+      if (rightPanelRef.current) {
+        rightPanelRef.current.style.width = `${clampedWidth}px`;
+      }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setRightWidth(lastWidthRef.current);
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -740,15 +757,13 @@ export default function AgentPage() {
     if (node !== null) {
       const observer = new ResizeObserver((entries) => {
         for (const entry of entries) {
-          setPaneWidth(entry.contentRect.width);
+          setIsNarrow(entry.contentRect.width < 580);
         }
       });
       observer.observe(node);
       observerRef.current = observer;
     }
   }, []);
-
-  const isNarrow = paneWidth < 580;
 
   const { activeMode, setActiveMode, openConnectionDialog } = useAgentStore();
 
@@ -881,7 +896,7 @@ export default function AgentPage() {
 
       <div ref={containerRef} className="h-full w-full flex relative">
         {/* Left Pane: Agent Chat Space */}
-        <div className={`h-full flex-1 min-w-[400px] relative overflow-hidden ${isDragging ? "pointer-events-none select-none" : ""}`}>
+        <div className={`h-full flex-1 min-w-[350px] relative overflow-hidden ${isDragging ? "pointer-events-none select-none" : ""}`}>
           <div
             ref={leftPaneRef}
             className="h-full w-full flex flex-col items-center justify-between p-8 bg-background relative overflow-hidden"
@@ -1503,13 +1518,15 @@ export default function AgentPage() {
         {/* Right Pane: Workflow Panel — only mount after page is ready */}
         {isPageReady && (
           <div 
-            className={`h-full shrink-0 overflow-hidden ${isDragging ? "pointer-events-none select-none" : "transition-[width] duration-300 ease-in-out"}`}
+            ref={rightPanelRef}
+            className={`h-full shrink-0 overflow-hidden will-change-[width] ${isDragging ? "pointer-events-none select-none" : "transition-[width] duration-300 ease-in-out"}`}
             style={{ 
               width: `${rightWidth}px`,
-              maxWidth: isRightOpen ? "calc(100% - 400px)" : undefined
+              maxWidth: isRightOpen ? "calc(100% - 350px)" : undefined
             }}
           >
             <WorkflowPanel
+              isDragging={isDragging}
               isRightOpen={isRightOpen}
               setIsRightOpen={setIsRightOpen}
               isPageReady={isPageReady}

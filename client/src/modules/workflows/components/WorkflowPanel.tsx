@@ -44,6 +44,7 @@ import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface WorkflowPanelProps {
+  isDragging?: boolean;
   isRightOpen: boolean;
   setIsRightOpen: (v: boolean) => void;
   isPageReady: boolean;
@@ -75,6 +76,7 @@ interface WorkflowPanelProps {
 }
 
 export default function WorkflowPanel({
+  isDragging,
   isRightOpen,
   setIsRightOpen,
   isPageReady,
@@ -127,7 +129,41 @@ export default function WorkflowPanel({
   if (!isPageReady) return null;
 
   return (
-    <div className="h-full w-full relative overflow-hidden bg-background">
+    <div className="h-full w-full relative overflow-hidden bg-background workflow-panel-root">
+      <style>{`
+        .workflow-panel-root {
+          container-type: inline-size;
+          container-name: workflow-panel;
+        }
+        @container workflow-panel (max-width: 580px) {
+          .workflow-panel-header {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            gap: 0.25rem !important;
+          }
+          .workflow-title-container {
+            max-width: 160px !important;
+          }
+          .workflow-title-text {
+            max-width: 60px !important;
+          }
+          .workflow-title-row {
+            gap: 0.25rem !important;
+          }
+        }
+        @container workflow-panel (max-width: 480px) {
+          .workflow-title-text {
+            max-width: 45px !important;
+          }
+          .workflow-run-text,
+          .workflow-stop-text {
+            display: none !important;
+          }
+          .workflow-stop-dot {
+            margin-right: 0 !important;
+          }
+        }
+      `}</style>
       {/* Collapsed Strip */}
       <div
         className={`absolute inset-y-0 left-0 w-[60px] bg-muted/10 flex flex-col items-center py-4 border-l border-border select-none transition-transform duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -163,14 +199,14 @@ export default function WorkflowPanel({
         }`}
       >
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm z-10">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm z-10 workflow-panel-header">
           {/* Left: title + controls */}
-          <div className="flex items-center gap-2 relative">
+          <div className="flex items-center gap-2 relative workflow-title-container">
             <div className="p-1.5 bg-blue-500/10 text-blue-500 rounded-lg">
               <FileText className="h-4 w-4" />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 workflow-title-row">
                 {isEditingTitle ? (
                   <input
                     autoFocus
@@ -199,7 +235,13 @@ export default function WorkflowPanel({
                     className="font-semibold text-sm text-foreground bg-transparent border-b border-blue-500 outline-none w-36"
                   />
                 ) : (
-                  <span className="font-semibold text-sm text-foreground max-w-[140px] truncate">
+                  <span 
+                    onClick={() => {
+                      setTitleDraft(workflowTitle);
+                      setIsEditingTitle(true);
+                    }}
+                    className="font-semibold text-sm text-foreground max-w-[140px] truncate cursor-pointer hover:text-blue-600 transition-colors workflow-title-text"
+                  >
                     {workflowTitle}
                   </span>
                 )}
@@ -213,7 +255,7 @@ export default function WorkflowPanel({
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-6 w-6 rounded  hover:text-foreground"
+                          className="h-6 w-6 rounded  hover:text-foreground workflow-header-pencil-btn"
                           onClick={() => {
                             setTitleDraft(workflowTitle);
                             setIsEditingTitle(true);
@@ -237,7 +279,7 @@ export default function WorkflowPanel({
                         type="button"
                         variant="outline"
                         size="icon"
-                        className={`h-6 w-6 rounded transition-colors ${
+                        className={`h-6 w-6 rounded transition-colors workflow-header-star-btn ${
                           isStarred
                             ? " text-yellow-500 hover:bg-yellow-100"
                             : " hover:text-yellow-500"
@@ -280,7 +322,7 @@ export default function WorkflowPanel({
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-6 w-6 rounded hover:text-foreground"
+                          className="h-6 w-6 rounded hover:text-foreground workflow-header-dropdown-btn"
                           onClick={() => setIsWorkflowDropdownOpen((o) => !o)}
                         >
                           <ChevronDown
@@ -445,10 +487,10 @@ export default function WorkflowPanel({
                     setIsWorkflowRunning(false);
                     setCurrentStepIndex(null);
                   }}
-                  className="h-9 rounded-lg px-4 font-semibold"
+                  className="h-9 rounded-lg px-3! font-semibold"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping mr-2" />
-                  Stop
+                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping mr-2 workflow-stop-dot" />
+                  <span className="workflow-stop-text">Stop</span>
                 </Button>
               ) : (
                 <div className="flex items-center gap-2">
@@ -519,7 +561,7 @@ export default function WorkflowPanel({
                     className="h-8 rounded-sm px-2 text-xs bg-blue-600 hover:bg-blue-700 gap-2 cursor-pointer"
                   >
                     <Play className="h-4 w-4 fill-white" />
-                    Run now
+                    <span className="workflow-run-text">Run now</span>
                   </Button>
                 </div>
               ))}
@@ -540,12 +582,14 @@ export default function WorkflowPanel({
         <div className="flex-1 relative flex flex-col bg-muted/5 min-h-0">
           <div className="w-full h-full flex-1 min-h-0">
             <FlowPreview
+              isDragging={isDragging}
               onSelectSuggestion={onSelectSuggestion}
               onEditWorkflow={onEditWorkflow}
               nodes={workflowData?.nodes}
               edges={workflowData?.edges}
               onChangeNodes={handleNodesChange}
               activeTab={activeTab}
+              setActiveTab={setActiveTab}
               isRunning={activeTab === "runs" && isWorkflowRunning}
               nodeStatuses={activeTab === "runs" ? nodeExecutionStatuses : {}}
             />
