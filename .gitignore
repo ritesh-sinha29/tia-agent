@@ -1,0 +1,50 @@
+# Dependency directories
+node_modules/
+.pnp
+.pnp.*
+.yarn/
+.venv/
+venv/
+env/
+ENV/
+
+# Testing and coverage
+coverage/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.cache
+.pytest_cache/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+target/
+*.tsbuildinfo
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# System and OS files
+.DS_Store
+Thumbs.db
+
+# Environments and Secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Python files
+__pycache__/
+*.py[cod]
+*$py.class
