@@ -1367,9 +1367,11 @@ function StraightEdge({ id, sourceX, sourceY, targetX, targetY }: any) {
 function FlowFitter({
   nodes,
   containerRef,
+  zoom,
 }: {
   nodes: any[];
   containerRef: React.RefObject<HTMLDivElement | null>;
+  zoom: number;
 }) {
   const { setViewport } = useReactFlow();
   useEffect(() => {
@@ -1378,15 +1380,15 @@ function FlowFitter({
         const rect = containerRef.current?.getBoundingClientRect();
         if (rect) {
           const nodeWidth = 500;
-          // Center horizontally
-          const x = (rect.width - nodeWidth) / 2;
-          // Start from the top (40px padding)
-          setViewport({ x, y: 30, zoom: 0.92 });
+          // Center horizontally taking zoom into account
+          const x = (rect.width - nodeWidth * zoom) / 2;
+          // Start from y = 0 since vertical padding is already computed in node coordinates
+          setViewport({ x, y: 0, zoom });
         }
       }, 100);
       return () => clearTimeout(t);
     }
-  }, [nodes, setViewport, containerRef]);
+  }, [nodes, setViewport, containerRef, zoom]);
   return null;
 }
 
@@ -1408,6 +1410,21 @@ export default function FlowPreview({
   const [activePopoverNodeId, setActivePopoverNodeId] = useState<string | null>(
     null,
   );
+  const [dimensions, setDimensions] = useState({ width: 0, height: 600 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
   const handleSuggestNew = () => {
     const shuffled = [...recipes].sort(() => 0.5 - Math.random());
     setCurrentRecipes(shuffled.slice(0, 3));
@@ -1522,12 +1539,67 @@ export default function FlowPreview({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Lay out nodes vertically (tight vertical spacing index * 140, always start from top, no need to center)
-  const renderedNodes = useMemo(() => {
+  // Dynamically calculate ZOOM based on the number of nodes (excluding task_trigger)
+  const ZOOM = useMemo(() => {
     const filteredNodes = localNodes.filter(
       (node) => node.type !== "task_trigger",
     );
-    return filteredNodes.map((node, index) => {
+    const N = filteredNodes.length;
+    if (N <= 1) return 1.0;
+    if (N === 2) return 0.94;
+    if (N === 3) return 0.88;
+    return 0.82; // N >= 4 (it stays at 0.82 if more than 4 nodes)
+  }, [localNodes]);
+
+  // Lay out nodes vertically, auto-adjusting spacing and scale.
+  // Exactly 4 nodes fit in the viewport; if > 4 nodes, it becomes scrollable.
+  const { renderedNodes, canvasHeight, isScrollable } = useMemo(() => {
+    const filteredNodes = localNodes.filter(
+      (node) => node.type !== "task_trigger",
+    );
+    const N = filteredNodes.length;
+    const H = dimensions.height || 600;
+
+    const nodeHeight = 100;
+    const topPadding = 40;
+    const bottomPadding = 160;
+
+    // Convert viewport height H to ReactFlow canvas coordinate space
+    const canvasH = H / ZOOM;
+    const viewportAvailableHeight = Math.max(200, canvasH - topPadding - bottomPadding);
+
+    let gap = 140;
+    let startY = topPadding;
+    let computedCanvasHeight = H;
+    let scrollRequired = false;
+
+    if (N > 0) {
+      if (N <= 4) {
+        if (N === 1) {
+          startY = topPadding + (viewportAvailableHeight - nodeHeight) / 2;
+          gap = 0;
+        } else {
+          // Cap gap to 160 to prevent too sparse nodes
+          gap = Math.min(160, (viewportAvailableHeight - nodeHeight) / (N - 1));
+          const totalNodesHeight = (N - 1) * gap + nodeHeight;
+          startY = topPadding + (viewportAvailableHeight - totalNodesHeight) / 2;
+        }
+        computedCanvasHeight = H;
+        scrollRequired = false;
+      } else {
+        // More than 4 nodes: exactly 4 nodes visible in viewport height H
+        gap = (viewportAvailableHeight - nodeHeight) / 3;
+        startY = topPadding;
+
+        // Total height in ReactFlow coordinate space
+        const totalCanvasHeight = topPadding + (N - 1) * gap + nodeHeight + bottomPadding;
+        // Convert back to screen pixels for CSS
+        computedCanvasHeight = totalCanvasHeight * ZOOM;
+        scrollRequired = true;
+      }
+    }
+
+    const nodesList = filteredNodes.map((node, index) => {
       const errors: string[] = [];
       const nodeType = node.type || "";
       if (nodeType.startsWith("ai_")) {
@@ -1560,10 +1632,12 @@ export default function FlowPreview({
           traceResult: node.data?.traceResult,
           errors,
         },
-        position: { x: 0, y: index * 160 },
+        position: { x: 0, y: startY + index * gap },
       };
     });
-  }, [localNodes, activeTab, isRunning, nodeStatuses, nodeDurations]);
+
+    return { renderedNodes: nodesList, canvasHeight: computedCanvasHeight, isScrollable: scrollRequired };
+  }, [localNodes, activeTab, isRunning, nodeStatuses, nodeDurations, dimensions.height, ZOOM]);
 
   // Force all edges to use straight type and filter out ones connected to task_trigger
   const renderedEdges = useMemo(() => {
@@ -1588,44 +1662,52 @@ export default function FlowPreview({
   );
 
   return (
-    <div className="w-full h-full relative flex items-center justify-center">
-      {/* Canvas — white background */}
-      <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
-        <ReactFlow
-          nodes={renderedNodes}
-          edges={renderedEdges}
-          nodeTypes={customNodeTypes}
-          edgeTypes={customEdgeTypes}
-          proOptions={{ hideAttribution: true }}
-          fitView={false} // Disable auto-fitView so it doesn't vertically center the workflow
-          nodesDraggable={false}
-          nodesConnectable={false}
-          panOnDrag={false}
-          zoomOnScroll={false}
-          zoomOnPinch={false}
-          zoomOnDoubleClick={false}
-          preventScrolling={false}
-          selectionOnDrag={false}
-        >
-          <Background gap={24} size={1} color="#e5e5e5" />
-          <FlowFitter nodes={renderedNodes} containerRef={containerRef} />
+    <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+      {/* Scrollable Viewport Wrapper */}
+      <div
+        ref={containerRef}
+        className={`absolute inset-0 z-0 bg-white overflow-x-hidden scrollbar-thin select-none ${
+          isScrollable ? "overflow-y-auto" : "overflow-y-hidden"
+        }`}
+      >
+        {/* Inner Canvas of dynamic height */}
+        <div style={{ height: isScrollable ? `${canvasHeight}px` : "100%", width: "100%", minHeight: "100%" }}>
+          <ReactFlow
+            nodes={renderedNodes}
+            edges={renderedEdges}
+            nodeTypes={customNodeTypes}
+            edgeTypes={customEdgeTypes}
+            proOptions={{ hideAttribution: true }}
+            fitView={false}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            panOnDrag={false}
+            zoomOnScroll={false}
+            zoomOnPinch={false}
+            zoomOnDoubleClick={false}
+            preventScrolling={false}
+            selectionOnDrag={false}
+          >
+            <Background gap={24} size={1} color="#e5e5e5" />
+            <FlowFitter nodes={renderedNodes} containerRef={containerRef} zoom={ZOOM} />
 
-          {/* Arrow marker */}
-          <svg style={{ position: "absolute", width: 0, height: 0 }}>
-            <defs>
-              <marker
-                id="flowArrow"
-                markerWidth="8"
-                markerHeight="10"
-                refX="6"
-                refY="4"
-                orient="auto"
-              >
-                <path d="M0,0 L0,8 L8,4 z" fill="#c8c8c8" />
-              </marker>
-            </defs>
-          </svg>
-        </ReactFlow>
+            {/* Arrow marker */}
+            <svg style={{ position: "absolute", width: 0, height: 0 }}>
+              <defs>
+                <marker
+                  id="flowArrow"
+                  markerWidth="8"
+                  markerHeight="10"
+                  refX="6"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M0,0 L0,8 L8,4 z" fill="#c8c8c8" />
+                </marker>
+              </defs>
+            </svg>
+          </ReactFlow>
+        </div>
       </div>
 
       {/* Popovers rendered at the root Level to bypass transformed container styling/scaling issues */}

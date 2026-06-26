@@ -221,12 +221,39 @@ export default function AgentPage() {
     setIsSaving(true);
     const delayDebounce = setTimeout(async () => {
       try {
+        // Sanitize nodes and edges to make them serializable for Convex
+        const sanitizedNodes = (workflowData.nodes || []).map((node: any) => {
+          const { onOpenSettings, ...restData } = node.data || {};
+          const serializableData = {
+            label: restData.label,
+            description: restData.description,
+            fields: restData.fields,
+            tool_name: restData.tool_name,
+            ai_config: restData.ai_config,
+            composio_config: restData.composio_config,
+            traceResult: restData.traceResult,
+          };
+          return {
+            id: node.id,
+            type: node.type,
+            position: node.position,
+            data: serializableData,
+          };
+        });
+
+        const sanitizedEdges = (workflowData.edges || []).map((edge: any) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          animated: edge.animated,
+        }));
+
         const id = await saveWorkflow({
           name: workflowTitle,
           description: "Designed workflow graph",
           structure: {
-            nodes: workflowData.nodes,
-            edges: workflowData.edges || [],
+            nodes: sanitizedNodes,
+            edges: sanitizedEdges,
           },
         });
         if (id && !savedWorkflowId) {
