@@ -134,6 +134,7 @@ function TimelineDayAxis({
               day.getMonth() !== prevMajor.getMonth() ||
               day.getFullYear() !== prevMajor.getFullYear());
           const isDeadline = isSameDay(day, config.deadlineDate);
+          const isMonthStart = day.getDate() === 1;
 
               const isDayToday = isToday(day);
 
@@ -152,8 +153,12 @@ function TimelineDayAxis({
                         <>
                           <div
                             className={cn(
-                              "w-px rounded-full bg-accent",
-                              isDayToday ? "h-5 bg-primary w-0.5" : showMonth ? "h-6 bg-blue-600" : "h-4"
+                              "w-px rounded-full",
+                              isDayToday
+                                ? "h-5 bg-primary w-0.5"
+                                : isMonthStart
+                                ? "h-7 bg-violet-500 w-0.5"
+                                : "h-4 bg-black/20 dark:bg-white/20"
                             )}
                           />
                           <span
@@ -161,8 +166,8 @@ function TimelineDayAxis({
                               "mt-1.5 text-center text-[10px] font-bold leading-none tabular-nums",
                               isDayToday
                                 ? "text-primary font-black text-[9px]"
-                                : showMonth
-                                ? "text-primary"
+                                : isMonthStart
+                                ? "text-violet-500 font-black"
                                 : "text-primary/80"
                             )}
                           >
@@ -289,7 +294,7 @@ function TimelineDayAxis({
               >
                 <div
                   className={cn(
-                    "absolute h-8 rounded-md border flex items-center pl-1.5 pr-3 shadow-xs group transition-all hover:shadow-md hover:scale-[1.03] backdrop-blur-xs cursor-pointer hover:z-50",
+                    "absolute h-8 rounded-md border flex items-center pl-1.5 pr-3 shadow-xs group transition-all hover:shadow-md hover:scale-[1.03] cursor-pointer hover:z-50",
                     taskUI.barClass
                   )}
                   style={{ left, width }}

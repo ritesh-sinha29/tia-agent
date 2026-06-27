@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   Info,
-  ArrowRight,
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -243,12 +242,10 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
       <div className="mt-3 pt-2.5 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5">
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <Info className="w-3 h-3 shrink-0" />
-          <ArrowRight className="w-2.5 h-2.5 shrink-0" />
           <span className="font-medium">Scroll to view all delayed tasks</span>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <Info className="w-3 h-3 shrink-0" />
-          <ArrowRight className="w-2.5 h-2.5 shrink-0" />
           <span className="font-medium">Hover to view task details</span>
         </div>
       </div>
