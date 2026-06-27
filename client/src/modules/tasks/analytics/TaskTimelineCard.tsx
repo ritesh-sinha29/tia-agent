@@ -371,14 +371,14 @@ export const TaskTimelineCard = ({
 
   if (!config) return null;
 
-  const filteredTasks = (tasks ?? []).filter((task) => {
-    if (statusFilter === "all") return true;
-    
-    // Normalize status strings
-    const taskStatus = task.status.toLowerCase().replace(/[^a-z0-9]+/g, "");
-    const currentFilter = statusFilter.toLowerCase().replace(/[^a-z0-9]+/g, "");
-    return taskStatus === currentFilter;
-  });
+  const filteredTasks = useMemo(() =>
+    (tasks ?? []).filter((task) => {
+      if (statusFilter === "all") return true;
+      const taskStatus = task.status.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      const currentFilter = statusFilter.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      return taskStatus === currentFilter;
+    }),
+  [tasks, statusFilter]);
 
   return (
     <div className="w-full bg-sidebar border rounded-xl overflow-hidden shadow-xs">
@@ -418,7 +418,7 @@ export const TaskTimelineCard = ({
                 <span>
                   {statusFilter === "all"
                     ? "All Statuses"
-                    : statusFilter === "inprogress"
+                    : statusFilter === "in-progress"
                     ? "In Progress"
                     : statusFilter}
                 </span>

@@ -38,12 +38,12 @@ const POPUP_HEIGHT = 130; // estimated popup height in px
 const POPUP_GAP = 6;
 
 export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
-  const today = startOfDay(new Date());
   const cardRef = useRef<HTMLDivElement>(null);
   const [hoveredTask, setHoveredTask] = useState<OverdueTaskItem | null>(null);
   const [popupTop, setPopupTop] = useState<number>(0);
 
   const overdueTasks = useMemo(() => {
+    const today = startOfDay(new Date());
     return (tasks || [])
       .filter((t) => {
         const isCompleted = t.status === "completed";
@@ -63,7 +63,7 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
         } as OverdueTaskItem;
       })
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
-  }, [tasks, today]);
+  }, [tasks]);
 
   const totalTasksCount = tasks?.length || 0;
   const overdueCount = overdueTasks.length;

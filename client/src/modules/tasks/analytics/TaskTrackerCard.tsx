@@ -4,9 +4,8 @@ import {
   Activity,
   AlertCircle,
   ArrowUpRight,
-  LucideAlertTriangle,
 } from "lucide-react";
-import React from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { Task } from "../taskTypes";
 import { startOfDay, differenceInDays } from "date-fns";
@@ -22,68 +21,66 @@ export const TaskTrackerCard = ({
   createdAt,
   deadline,
 }: TaskTrackerCardProps) => {
-  const now = Date.now();
-  const today = startOfDay(new Date());
-  const msInDay = 1000 * 60 * 60 * 24;
+  const {
+    totalDays,
+    daysConsumed,
+    daysRemaining,
+    totalTasks,
+    completedTasks,
+    overdueTasks,
+    atRiskTasks,
+    pendingTasks,
+    completedPct,
+    pendingPct,
+    atRiskPct,
+    overduePct,
+  } = useMemo(() => {
+    const now = Date.now();
+    const today = startOfDay(new Date());
+    const msInDay = 1000 * 60 * 60 * 24;
 
-  const totalDays = Math.max(1, (deadline - createdAt) / msInDay);
-  const daysConsumed = Math.max(0, (now - createdAt) / msInDay);
-  const daysRemaining = Math.max(0, (deadline - now) / msInDay);
+    const totalDays = Math.max(1, (deadline - createdAt) / msInDay);
+    const daysConsumed = Math.max(0, (now - createdAt) / msInDay);
+    const daysRemaining = Math.max(0, (deadline - now) / msInDay);
 
-  const totalTasks = tasks?.length || 0;
-  const completedTasks =
-    tasks?.filter((t) => t.status === "completed").length || 0;
-  const incompleteTasks = tasks?.filter((t) => t.status !== "completed") || [];
-  
-  // Align overdue and at risk metrics with calendar days
-  const overdueTasks =
-    incompleteTasks.filter((t) => {
+    const totalTasks = tasks?.length || 0;
+    const completedTasks = tasks?.filter((t) => t.status === "completed").length || 0;
+    const incompleteTasks = tasks?.filter((t) => t.status !== "completed") || [];
+
+    const overdueTasks = incompleteTasks.filter((t) => {
       const endTask = startOfDay(new Date(t.estimation.endDate));
       return endTask < today;
     }).length || 0;
 
-  const atRiskTasks =
-    incompleteTasks.filter((t) => {
+    const atRiskTasks = incompleteTasks.filter((t) => {
       const endTask = startOfDay(new Date(t.estimation.endDate));
       const daysLeft = differenceInDays(endTask, today);
       return endTask >= today && daysLeft <= 2;
     }).length || 0;
 
-  const pendingTasks = Math.max(0, totalTasks - completedTasks - overdueTasks - atRiskTasks);
+    const pendingTasks = Math.max(0, totalTasks - completedTasks - overdueTasks - atRiskTasks);
 
-  const completedPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-  const pendingPct = totalTasks > 0 ? (pendingTasks / totalTasks) * 100 : 0;
-  const atRiskPct = totalTasks > 0 ? (atRiskTasks / totalTasks) * 100 : 0;
-  const overduePct = totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0;
+    const completedPct = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+    const pendingPct = totalTasks > 0 ? (pendingTasks / totalTasks) * 100 : 0;
+    const atRiskPct = totalTasks > 0 ? (atRiskTasks / totalTasks) * 100 : 0;
+    const overduePct = totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0;
 
-  const isReady = totalTasks >= 3 && daysConsumed >= 2;
+    return {
+      totalDays,
+      daysConsumed,
+      daysRemaining,
+      totalTasks,
+      completedTasks,
+      overdueTasks,
+      atRiskTasks,
+      pendingTasks,
+      completedPct,
+      pendingPct,
+      atRiskPct,
+      overduePct,
+    };
+  }, [tasks, createdAt, deadline]);
 
-  if (!isReady) {
-    return (
-      <div className="h-full w-full border border-neutral-200 dark:border-neutral-800 rounded-xl bg-card dark:bg-neutral-900/80 shadow-xs p-4 flex flex-col relative overflow-hidden">
-        <div className="flex items-center gap-2 mb-3">
-          <div className={cn("p-1.5 rounded-md border bg-muted")}>
-            <Activity className={cn("w-3.5 h-3.5 text-primary")} />
-          </div>
-          <h3 className="text-sm font-medium tracking-tight text-black dark:text-white">
-            Task Tracker
-          </h3>
-        </div>
-        <div className="flex flex-col items-center justify-center space-y-3 mt-6">
-          <LucideAlertTriangle
-            className={cn("w-8 h-8 text-primary opacity-50")}
-          />
-          <p className="text-xs text-muted-foreground leading-relaxed text-center px-7">
-            Your workspace must have at least{" "}
-            <span className="text-primary font-semibold">3 tasks and 2 days of history</span>{" "}
-            to establish velocity.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // READY STATE
   // Gap analysis: completed pct vs time consumed pct
   const timeConsumedPct = Math.min(100, (daysConsumed / totalDays) * 100);
   const gap = timeConsumedPct - completedPct;
