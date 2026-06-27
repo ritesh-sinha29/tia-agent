@@ -6,7 +6,7 @@ import { subDays } from "date-fns";
 import type { Task } from "../taskTypes";
 
 import { TaskDistributionCard } from "./TaskDistributionCard";
-import { DelayDebtCard } from "./DelayDebtCard";
+import { OverdueDebtCard } from "./OverdueDebtCard";
 import { TaskTrackerCard } from "./TaskTrackerCard";
 import { TaskTimelineCard } from "./TaskTimelineCard";
 
@@ -161,7 +161,7 @@ export default function AnalyticsSection({ tasks }: AnalyticsSectionProps) {
         {/* Row 1: The Three Cards */}
         <TaskDistributionCard tasks={activeTasks} />
         
-        <DelayDebtCard tasks={activeTasks} />
+        <OverdueDebtCard tasks={activeTasks} />
 
         <TaskTrackerCard
           tasks={activeTasks}

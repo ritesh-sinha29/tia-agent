@@ -160,7 +160,7 @@ function TimelineDayAxis({
                             className={cn(
                               "mt-1.5 text-center text-[10px] font-bold leading-none tabular-nums",
                               isDayToday
-                                ? "bg-primary text-primary-foreground px-2 py-0.5 rounded-md text-[9px] font-black shadow-xs"
+                                ? "text-primary font-black text-[9px]"
                                 : showMonth
                                 ? "text-primary"
                                 : "text-primary/80"
