@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { connectorIcons } from "@/lib/static";
 import { Button } from "@/components/ui/button";
 import {
@@ -302,7 +303,9 @@ function AINodePopover({
                     Prompt
                   </label>
                   {!prompt.trim() && (
-                    <span className="text-[10px] text-red-500 font-semibold lowercase">Required field</span>
+                    <span className="text-[10px] text-red-500 font-semibold lowercase">
+                      Required field
+                    </span>
                   )}
                 </div>
                 <p className="text-[11px] text-neutral-500 mb-2 leading-normal font-medium">
@@ -312,11 +315,13 @@ function AINodePopover({
                     See examples
                   </span>
                 </p>
-                <div className={`border rounded-xl bg-neutral-50/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all ${
-                  !prompt.trim() 
-                    ? "border-red-300 focus-within:border-red-400" 
-                    : "border-neutral-200 focus-within:border-blue-400"
-                }`}>
+                <div
+                  className={`border rounded-xl bg-neutral-50/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all ${
+                    !prompt.trim()
+                      ? "border-red-300 focus-within:border-red-400"
+                      : "border-neutral-200 focus-within:border-blue-400"
+                  }`}
+                >
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
@@ -698,7 +703,9 @@ function AppNodePopover({
                     <label className="block text-[11px] text-neutral-500 mb-1 font-medium capitalize flex justify-between">
                       <span>{key.replace(/_/g, " ")}</span>
                       {isEmpty && (
-                        <span className="text-[10px] text-red-500 font-semibold lowercase">Required field</span>
+                        <span className="text-[10px] text-red-500 font-semibold lowercase">
+                          Required field
+                        </span>
                       )}
                     </label>
                     <input
@@ -708,8 +715,8 @@ function AppNodePopover({
                         setParams((p) => ({ ...p, [key]: e.target.value }))
                       }
                       className={`w-full rounded-xl border bg-neutral-50 px-4 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-mono ${
-                        isEmpty 
-                          ? "border-red-300 focus:border-red-400" 
+                        isEmpty
+                          ? "border-red-300 focus:border-red-400"
                           : "border-neutral-200 focus:border-blue-400"
                       }`}
                     />
@@ -752,7 +759,10 @@ function TriggerNode({ data }: { data: any }) {
   const isFirst = data._isFirst !== false;
   if (isFirst) {
     return (
-      <div style={{ width: data.width ? `${data.width}px` : "450px" }} className="rounded-xl border-2 border-blue-500 bg-blue-600 shadow-lg shadow-blue-500/25 px-4 py-3.5 select-none cursor-default">
+      <div
+        style={{ width: data.width ? `${data.width}px` : "450px" }}
+        className="rounded-xl border-2 border-blue-500 bg-blue-600 shadow-lg shadow-blue-500/25 px-4 py-3.5 select-none cursor-default"
+      >
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-md bg-white/20 flex items-center justify-center">
@@ -798,7 +808,10 @@ function TriggerNode({ data }: { data: any }) {
   }
 
   return (
-    <div style={{ width: data.width ? `${data.width}px` : "450px" }} className="rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3.5 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
+    <div
+      style={{ width: data.width ? `${data.width}px` : "450px" }}
+      className="rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3.5 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all"
+    >
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-md bg-white border border-neutral-200 flex items-center justify-center shrink-0">
@@ -860,7 +873,10 @@ function AINode({ data }: { data: any }) {
 
   if (isFirst) {
     return (
-      <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default">
+      <div
+        style={{ width: data.width ? `${data.width}px` : "500px" }}
+        className="workflow-node-card rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default"
+      >
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded bg-white flex items-center justify-center border shrink-0 node-logo-wrapper">
@@ -879,7 +895,9 @@ function AINode({ data }: { data: any }) {
           {data.isRunsTab ? (
             <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
               {data.duration !== undefined && data.status !== "pending" && (
-                <span className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}>
+                <span
+                  className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}
+                >
                   {data.duration}s
                 </span>
               )}
@@ -908,7 +926,8 @@ function AINode({ data }: { data: any }) {
               className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
               title="Configure app node"
             >
-              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
+              <span className="node-edit-text mr-1">Edit</span>
+              <Settings className="h-3.5 w-3.5 node-edit-icon" />
             </Button>
           )}
         </div>
@@ -920,7 +939,7 @@ function AINode({ data }: { data: any }) {
             {typeTag}
           </span>
           <div className="flex items-center gap-2 node-meta-text">
-            {data.errors && data.errors.length > 0 ? (
+            {data.errors && data.errors.length > 0 && data.isRunsTab ? (
               <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold node-meta-text">
                 <AlertCircle className="size-3.5 text-red-600 node-meta-icon" />
                 <span>Missing prompt</span>
@@ -962,16 +981,6 @@ function AINode({ data }: { data: any }) {
             )}
           </div>
         </div>
-        {data.errors && data.errors.length > 0 && (
-          <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[10px] text-red-700 flex flex-col gap-1 node-error-container">
-            {data.errors.map((err: string, i: number) => (
-              <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 node-error-icon" />
-                {err}
-              </span>
-            ))}
-          </div>
-        )}
         <Handle
           type="source"
           position={Position.Bottom}
@@ -982,7 +991,10 @@ function AINode({ data }: { data: any }) {
   }
 
   return (
-    <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
+    <div
+      style={{ width: data.width ? `${data.width}px` : "500px" }}
+      className="workflow-node-card rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all"
+    >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded border bg-white flex items-center justify-center shrink-0 node-logo-wrapper">
@@ -1001,7 +1013,9 @@ function AINode({ data }: { data: any }) {
         {data.isRunsTab ? (
           <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
             {data.duration !== undefined && data.status !== "pending" && (
-              <span className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}>
+              <span
+                className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}
+              >
                 {data.duration}s
               </span>
             )}
@@ -1030,7 +1044,8 @@ function AINode({ data }: { data: any }) {
             className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
             title="Configure app node"
           >
-            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
+            <span className="node-edit-text mr-1">Edit</span>
+            <Settings className="h-3.5 w-3.5 node-edit-icon" />
           </Button>
         )}
       </div>
@@ -1042,7 +1057,7 @@ function AINode({ data }: { data: any }) {
           {typeTag}
         </span>
         <div className="flex items-center gap-2 node-meta-text">
-          {data.errors && data.errors.length > 0 ? (
+          {data.errors && data.errors.length > 0 && data.isRunsTab ? (
             <div className="flex items-center gap-1 text-[10px] text-red-600 font-semibold node-meta-text">
               <AlertCircle className="size-3.5 text-red-500 node-meta-icon" />
               <span>Missing prompt</span>
@@ -1084,16 +1099,6 @@ function AINode({ data }: { data: any }) {
           )}
         </div>
       </div>
-      {data.errors && data.errors.length > 0 && (
-        <div className="mt-2.5 pt-2 border-t border-neutral-200 text-[10px] text-red-600 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 node-error-container">
-          {data.errors.map((err: string, i: number) => (
-            <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 node-error-icon" />
-              {err}
-            </span>
-          ))}
-        </div>
-      )}
       <Handle
         type="target"
         position={Position.Top}
@@ -1128,7 +1133,10 @@ function AppNode({ data }: { data: any }) {
 
   if (isFirst) {
     return (
-      <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default">
+      <div
+        style={{ width: data.width ? `${data.width}px` : "500px" }}
+        className="workflow-node-card rounded-md border bg-blue-100 shadow-sm shadow-blue-500/25 px-4 py-3 select-none cursor-default"
+      >
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 justify-center items-center flex border rounded bg-white shrink-0 node-logo-wrapper">
@@ -1140,12 +1148,16 @@ function AppNode({ data }: { data: any }) {
                 className="object-contain node-logo-img"
               />
             </div>
-            <span className="text-sm font-semibold uppercase node-header-title">{appName}</span>
+            <span className="text-sm font-semibold uppercase node-header-title">
+              {appName}
+            </span>
           </div>
           {data.isRunsTab ? (
             <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
               {data.duration !== undefined && data.status !== "pending" && (
-                <span className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}>
+                <span
+                  className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}
+                >
                   {data.duration}s
                 </span>
               )}
@@ -1174,7 +1186,8 @@ function AppNode({ data }: { data: any }) {
               className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
               title="Configure app node"
             >
-              <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
+              <span className="node-edit-text mr-1">Edit</span>
+              <Settings className="h-3.5 w-3.5 node-edit-icon" />
             </Button>
           )}
         </div>
@@ -1186,7 +1199,7 @@ function AppNode({ data }: { data: any }) {
             <span className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px] node-action-badge">
               {actionName}
             </span>
-            {data.errors && data.errors.length > 0 ? (
+            {data.errors && data.errors.length > 0 && data.isRunsTab ? (
               <div className="flex items-center gap-1 text-[10px] text-red-700 font-semibold node-meta-text">
                 <AlertCircle className="size-3.5 text-red-600 node-meta-icon" />
                 <span>Missing parameter</span>
@@ -1238,18 +1251,6 @@ function AppNode({ data }: { data: any }) {
             )}
           </div>
         )}
-        {data.errors &&
-          data.errors.length > 0 &&
-          !data.isSimulationActive && (
-            <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-[10px] text-red-700 flex flex-col gap-1 node-error-container">
-              {data.errors.map((err: string, i: number) => (
-                <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 node-error-icon" />
-                  {err}
-                </span>
-              ))}
-            </div>
-          )}
         <Handle
           type="source"
           position={Position.Bottom}
@@ -1260,7 +1261,10 @@ function AppNode({ data }: { data: any }) {
   }
 
   return (
-    <div style={{ width: data.width ? `${data.width}px` : "500px" }} className="workflow-node-card rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all">
+    <div
+      style={{ width: data.width ? `${data.width}px` : "500px" }}
+      className="workflow-node-card rounded-md border border-neutral-200 bg-neutral-50 shadow-sm px-4 py-3 select-none cursor-default hover:shadow-md hover:border-neutral-300 transition-all"
+    >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded bg-white border flex items-center justify-center shrink-0 node-logo-wrapper">
@@ -1272,12 +1276,16 @@ function AppNode({ data }: { data: any }) {
               className="object-contain node-logo-img"
             />
           </div>
-          <span className="text-sm font-semibold uppercase node-header-title">{appName}</span>
+          <span className="text-sm font-semibold uppercase node-header-title">
+            {appName}
+          </span>
         </div>
         {data.isRunsTab ? (
           <div className="h-6 flex items-center gap-1.5 justify-end shrink-0">
             {data.duration !== undefined && data.status !== "pending" && (
-              <span className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}>
+              <span
+                className={`text-[10px] font-mono text-neutral-700 ${data.status === "running" ? "animate-pulse" : ""}`}
+              >
                 {data.duration}s
               </span>
             )}
@@ -1306,7 +1314,8 @@ function AppNode({ data }: { data: any }) {
             className="text-[10px] rounded-sm flex items-center justify-center node-edit-btn"
             title="Configure app node"
           >
-            <span className="node-edit-text mr-1">Edit</span><Settings className="h-3.5 w-3.5 node-edit-icon" />
+            <span className="node-edit-text mr-1">Edit</span>
+            <Settings className="h-3.5 w-3.5 node-edit-icon" />
           </Button>
         )}
       </div>
@@ -1318,7 +1327,7 @@ function AppNode({ data }: { data: any }) {
           <span className="text-[10px] text-neutral-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md font-medium truncate max-w-[130px] node-action-badge">
             {actionName}
           </span>
-          {data.errors && data.errors.length > 0 ? (
+          {data.errors && data.errors.length > 0 && data.isRunsTab ? (
             <div className="flex items-center gap-1 text-[10px] text-red-600 font-semibold node-meta-text">
               <AlertCircle className="size-3.5 text-red-500 node-meta-icon" />
               <span>Missing parameter</span>
@@ -1370,18 +1379,6 @@ function AppNode({ data }: { data: any }) {
           )}
         </div>
       )}
-      {data.errors &&
-        data.errors.length > 0 &&
-        !data.isSimulationActive && (
-          <div className="mt-2.5 pt-2 border-t border-neutral-200 text-[10px] text-red-600 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 node-error-container">
-            {data.errors.map((err: string, i: number) => (
-              <span key={i} className="flex items-center gap-1 font-semibold node-error-item">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500 node-error-icon" />
-                {err}
-              </span>
-            ))}
-          </div>
-        )}
       <Handle
         type="target"
         position={Position.Top}
@@ -1412,11 +1409,7 @@ function StraightEdge({ id, sourceX, sourceY, targetX, targetY }: any) {
 
 // ─── Auto Fit ─────────────────────────────────────────────────────────────────
 
-function FlowFitter({
-  zoom,
-}: {
-  zoom: number;
-}) {
+function FlowFitter({ zoom }: { zoom: number }) {
   const { setViewport } = useReactFlow();
   const isInitial = useRef(true);
 
@@ -1450,6 +1443,10 @@ export default function FlowPreview({
   nodeExecutionDurations = {},
   isDragging = false,
 }: FlowPreviewProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [currentRecipes, setCurrentRecipes] = useState<typeof recipes>([]);
   const [localNodes, setLocalNodes] = useState<any[]>([]);
   const [activePopoverNodeId, setActivePopoverNodeId] = useState<string | null>(
@@ -1502,7 +1499,9 @@ export default function FlowPreview({
     }
   }, [nodes]);
 
-  const [nodeDurations, setNodeDurations] = useState<Record<string, number>>({});
+  const [nodeDurations, setNodeDurations] = useState<Record<string, number>>(
+    {},
+  );
   const runningNodeIdRef = useRef<string | null>(null);
   const runningStartTimeRef = useRef<number | null>(null);
   const prevIsRunningRef = useRef(isRunning);
@@ -1623,9 +1622,15 @@ export default function FlowPreview({
 
     // Convert viewport height H to ReactFlow canvas coordinate space
     const canvasH = H / ZOOM;
-    const viewportAvailableHeight = Math.max(200, canvasH - topPadding - bottomPadding);
+    const viewportAvailableHeight = Math.max(
+      200,
+      canvasH - topPadding - bottomPadding,
+    );
 
-    const nodeCanvasWidth = Math.min(500, Math.max(280, (dimensions.width - 32) / ZOOM));
+    const nodeCanvasWidth = Math.min(
+      500,
+      Math.max(280, (dimensions.width - 32) / ZOOM),
+    );
 
     // Pre-calculate errors and heights for all nodes to compute proper spacing
     interface PreparedNode {
@@ -1654,15 +1659,16 @@ export default function FlowPreview({
         });
       }
 
-      // Base node height is 100px. If errors are present and we are not in running simulation,
-      // we render the error container which adds 20px padding/border and 20px per error message.
-      const hasErrors = errors.length > 0 && !isRunning;
-      const height = hasErrors ? (100 + 20 + errors.length * 20) : 100;
+      // All nodes have a standard height of 100px since the bottom error listing container is removed.
+      const height = 100;
 
       return { node, errors, height };
     });
 
-    const totalNodesHeight = preparedNodes.reduce((sum, item) => sum + item.height, 0);
+    const totalNodesHeight = preparedNodes.reduce(
+      (sum, item) => sum + item.height,
+      0,
+    );
 
     let gap = 40;
     let startY = topPadding;
@@ -1671,7 +1677,9 @@ export default function FlowPreview({
 
     if (N > 0) {
       if (N === 1) {
-        startY = topPadding + Math.max(0, viewportAvailableHeight - preparedNodes[0].height) / 2;
+        startY =
+          topPadding +
+          Math.max(0, viewportAvailableHeight - preparedNodes[0].height) / 2;
         gap = 0;
       } else {
         const minGap = 40;
@@ -1726,8 +1734,21 @@ export default function FlowPreview({
       };
     });
 
-    return { renderedNodes: nodesList, canvasHeight: computedCanvasHeight, isScrollable: scrollRequired };
-  }, [localNodes, activeTab, isRunning, nodeStatuses, nodeDurations, dimensions.width, dimensions.height, ZOOM]);
+    return {
+      renderedNodes: nodesList,
+      canvasHeight: computedCanvasHeight,
+      isScrollable: scrollRequired,
+    };
+  }, [
+    localNodes,
+    activeTab,
+    isRunning,
+    nodeStatuses,
+    nodeDurations,
+    dimensions.width,
+    dimensions.height,
+    ZOOM,
+  ]);
 
   // Force all edges to use straight type and filter out ones connected to task_trigger
   const renderedEdges = useMemo(() => {
@@ -1906,7 +1927,13 @@ export default function FlowPreview({
         }`}
       >
         {/* Inner Canvas of dynamic height */}
-        <div style={{ height: isScrollable ? `${canvasHeight}px` : "100%", width: "100%", minHeight: "100%" }}>
+        <div
+          style={{
+            height: isScrollable ? `${canvasHeight}px` : "100%",
+            width: "100%",
+            minHeight: "100%",
+          }}
+        >
           <ReactFlow
             nodes={renderedNodes}
             edges={renderedEdges}
@@ -1945,41 +1972,49 @@ export default function FlowPreview({
         </div>
       </div>
 
-      {/* Popovers rendered at the root Level to bypass transformed container styling/scaling issues */}
-      {activeNode && activeNode.type?.startsWith("ai_") && (
-        <AINodePopover
-          data={activeNode.data}
-          nodeType={activeNode.type}
-          onClose={() => setActivePopoverNodeId(null)}
-          onSave={(newData, newType) => {
-            const updated = localNodes.map((n) =>
-              n.id === activeNode.id
-                ? { ...n, type: newType, data: { ...n.data, ...newData } }
-                : n,
-            );
-            setLocalNodes(updated);
-            onChangeNodes?.(updated);
-            setActivePopoverNodeId(null);
-          }}
-        />
-      )}
+      {/* Popovers rendered via React Portal to bypass transformed container styling/scaling issues and open centered globally on page */}
+      {mounted &&
+        activeNode &&
+        activeNode.type?.startsWith("ai_") &&
+        createPortal(
+          <AINodePopover
+            data={activeNode.data}
+            nodeType={activeNode.type}
+            onClose={() => setActivePopoverNodeId(null)}
+            onSave={(newData, newType) => {
+              const updated = localNodes.map((n) =>
+                n.id === activeNode.id
+                  ? { ...n, type: newType, data: { ...n.data, ...newData } }
+                  : n,
+              );
+              setLocalNodes(updated);
+              onChangeNodes?.(updated);
+              setActivePopoverNodeId(null);
+            }}
+          />,
+          document.body,
+        )}
 
-      {activeNode && activeNode.type === "composio_app" && (
-        <AppNodePopover
-          data={activeNode.data}
-          onClose={() => setActivePopoverNodeId(null)}
-          onSave={(newData) => {
-            const updated = localNodes.map((n) =>
-              n.id === activeNode.id
-                ? { ...n, data: { ...n.data, ...newData } }
-                : n,
-            );
-            setLocalNodes(updated);
-            onChangeNodes?.(updated);
-            setActivePopoverNodeId(null);
-          }}
-        />
-      )}
+      {mounted &&
+        activeNode &&
+        activeNode.type === "composio_app" &&
+        createPortal(
+          <AppNodePopover
+            data={activeNode.data}
+            onClose={() => setActivePopoverNodeId(null)}
+            onSave={(newData) => {
+              const updated = localNodes.map((n) =>
+                n.id === activeNode.id
+                  ? { ...n, data: { ...n.data, ...newData } }
+                  : n,
+              );
+              setLocalNodes(updated);
+              onChangeNodes?.(updated);
+              setActivePopoverNodeId(null);
+            }}
+          />,
+          document.body,
+        )}
 
       {/* Recipe suggestions — shown only if no workflow loaded */}
       {!hasWorkflow && (

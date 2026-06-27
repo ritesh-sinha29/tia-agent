@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { toast } from "sonner";
 import {
   AlertCircle,
   Bell,
@@ -45,35 +46,80 @@ import AgentChatMessages from "./AgentChatMessages";
 import WorkflowPanel from "../../../../modules/workflows/components/WorkflowPanel";
 import WorkflowChoiceDialog from "../../../../modules/WorkflowChoiceDialog";
 
-const suggestions = [
+const brainSuggestions = [
   {
-    title: "Context",
-    description:
-      "Suggest me some tasks and automations from yesterday research.",
-    shortDescription: "Suggest tasks from yesterday's research.",
-    prompt: "Suggest tasks and automations from yesterday research.",
+    title: "Browser Activities",
+    description: "Create tasks from my previous important browser activities.",
+    shortDescription: "Tasks from browser activities.",
+    prompt: "Create tasks from my previous important browser activities.",
     icon: Brain,
     iconColor: "text-purple-500",
     iconBg: "bg-purple-500/10 group-hover:bg-purple-500/20",
   },
   {
-    title: "Workload & Deadline",
-    description: "Explain my recent workload and tasks pending",
-    shortDescription: "Explain my pending workload.",
-    prompt: "Explain my recent workload and tasks pending",
+    title: "Internet Usage",
+    description:
+      "Reflect my past activities and tell what I spent most hours on internet?",
+    shortDescription: "Internet usage recap.",
+    prompt:
+      "Reflect my past activities and tell what I spent most hours on internet?",
     icon: Clock,
-    iconColor: "text-purple-500",
-    iconBg: "bg-purple-500/10 group-hover:bg-purple-500/20",
+    iconColor: "text-amber-500",
+    iconBg: "bg-amber-500/10 group-hover:bg-amber-500/20",
   },
   {
-    title: "Research Workflow",
+    title: "Important Tasks",
     description:
-      "Create a workflow to research about x topic and create report.",
-    shortDescription: "Research a topic and create report.",
-    prompt: "Create a workflow to research about x topic and create report.",
+      "Check my important emails, calendar and slack messages and make some tasks that are important.",
+    shortDescription: "Sync emails, calendar & slack.",
+    prompt:
+      "Check my important emails, calendar and slack messages and make some tasks that are important.",
     icon: Workflow,
-    iconColor: "text-purple-500",
-    iconBg: "bg-purple-500/10 group-hover:bg-purple-500/20",
+    iconColor: "text-blue-500",
+    iconBg: "bg-blue-500/10 group-hover:bg-blue-500/20",
+    images: ["/gmail.png", "/calendar.png", "/slack.png"],
+  },
+];
+
+const agentSuggestions = [
+  {
+    title: "AI Trends Doc",
+    description:
+      "Research about latest AI trends and create a doc and send to email.",
+    shortDescription: "Research AI trends & send doc.",
+    prompt:
+      "Research about latest AI trends, create a Google Doc, and send to my email.",
+    icon: Sparkles,
+    iconColor: "text-blue-500",
+    iconBg: "bg-blue-500/10 group-hover:bg-blue-500/20",
+    images: ["/logo.svg", "/docs.png", "/gmail.png"],
+    apps: ["Google Docs", "Gmail"],
+  },
+  {
+    title: "AI Jobs in India",
+    description:
+      "Research about latest AI jobs in India, send to slack and post in reddit.",
+    shortDescription: "AI jobs: Slack & Reddit.",
+    prompt:
+      "Research about latest AI jobs in India, send details to Slack, and post on Reddit.",
+    icon: Search,
+    iconColor: "text-orange-500",
+    iconBg: "bg-orange-500/10 group-hover:bg-orange-500/20",
+    images: ["/logo.svg", "/slack.png", "/reddit.png"],
+    apps: ["Slack", "Reddit"],
+  },
+  {
+    title: "Linear & Todoist",
+    description:
+      "Fetch tasks from linear, send to slack and make those tasks in todoist.",
+    shortDescription: "Linear tasks to Slack & Todoist.",
+    prompt:
+      "Fetch tasks from Linear, send a summary to Slack, and create those tasks in Todoist.",
+    icon: Bot,
+    iconColor: "text-emerald-500",
+    iconBg: "bg-emerald-500/10 group-hover:bg-emerald-500/20",
+    images: ["/linear.jpeg", "/slack.png", "/todoist.jpg"],
+    apps: ["Linear", "Slack", "Todoist"],
   },
 ];
 
@@ -101,11 +147,43 @@ export default function AgentPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const saveWorkflow = useMutation(api.workflows.saveWorkflow);
+  const updateLastRun = useMutation(api.workflows.updateLastRun);
+  const workflows = useQuery(api.workflows.getWorkflows);
 
   // Workflow metadata state (passed down to WorkflowPanel)
   const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null);
   const [isStarred, setIsStarred] = useState(false);
   const [workflowTitle, setWorkflowTitle] = useState("Untitled");
+
+  // Load workflow from URL search query parameter on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && workflows && workflows.length > 0) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const workflowId = searchParams.get("workflowId");
+      if (workflowId) {
+        const wf = workflows.find((w) => w._id === workflowId);
+        if (wf) {
+          setWorkflowData({
+            nodes: wf.structure.nodes,
+            edges: wf.structure.edges,
+          });
+          setWorkflowTitle(wf.name);
+          setIsStarred(wf.isStarred);
+          setSavedWorkflowId(wf._id);
+          setIsRightOpen(true);
+
+          // Clear query parameter from URL to prevent duplicate loads
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("workflowId");
+          window.history.replaceState(
+            {},
+            "",
+            cleanUrl.pathname + cleanUrl.search,
+          );
+        }
+      }
+    }
+  }, [workflows, setWorkflowData, setIsRightOpen]);
 
   // Workflow-choice intercept state (Q2: edit vs new when workflow is open)
   const [showWorkflowChoice, setShowWorkflowChoice] = useState(false);
@@ -119,11 +197,14 @@ export default function AgentPage() {
   const [isDragging, setIsDragging] = useState(false);
   const lastWidthRef = useRef(600);
 
-  const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
-    mouseDownEvent.preventDefault();
-    lastWidthRef.current = rightWidth;
-    setIsDragging(true);
-  }, [rightWidth]);
+  const startResizing = useCallback(
+    (mouseDownEvent: React.MouseEvent) => {
+      mouseDownEvent.preventDefault();
+      lastWidthRef.current = rightWidth;
+      setIsDragging(true);
+    },
+    [rightWidth],
+  );
 
   useEffect(() => {
     if (!isRightOpen) {
@@ -151,8 +232,11 @@ export default function AgentPage() {
       const newRightWidth = rect.right - e.clientX;
       const minRight = isRightOpen ? 380 : 60; // Keep the original min-width limit of 380px
       const maxRight = rect.width - 350; // Left pane minimum size is 350px
-      const clampedWidth = Math.max(minRight, Math.min(maxRight, newRightWidth));
-      
+      const clampedWidth = Math.max(
+        minRight,
+        Math.min(maxRight, newRightWidth),
+      );
+
       lastWidthRef.current = clampedWidth;
       if (rightPanelRef.current) {
         rightPanelRef.current.style.width = `${clampedWidth}px`;
@@ -320,6 +404,7 @@ export default function AgentPage() {
   }, [workflowData, saveWorkflow]);
 
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
+  const runToastIdRef = useRef<string | number | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
   const [nodeExecutionStatuses, setNodeExecutionStatuses] = useState<
     Record<string, "pending" | "running" | "success" | "failed">
@@ -378,26 +463,42 @@ export default function AgentPage() {
     return errors;
   }, []);
 
-  const startSimulation = useCallback((nodes: any[]) => {
-    if (!nodes || nodes.length === 0) return;
-    setIsWorkflowRunning(true);
-    setCurrentStepIndex(0);
-    setExecutionLogs([
-      `[${new Date().toLocaleTimeString()}] ðŸš€ Initiating execution for workflow: Designed Automation Graph`,
-      `[${new Date().toLocaleTimeString()}] ðŸ›¡ï¸ Validating security tokens and node credentials...`,
-      `[${new Date().toLocaleTimeString()}] âœ… Security validation complete. All connections authorized.`,
-      `[${new Date().toLocaleTimeString()}] ðŸ“ Starting execution sequence...`,
-    ]);
+  const startSimulation = useCallback(
+    (nodes: any[]) => {
+      if (!nodes || nodes.length === 0) return;
+      setIsWorkflowRunning(true);
+      setCurrentStepIndex(0);
+      setExecutionLogs([
+        `[${new Date().toLocaleTimeString()}] 🚀 Initiating execution for workflow: Designed Automation Graph`,
+        `[${new Date().toLocaleTimeString()}] 🛡️ Validating security tokens and node credentials...`,
+        `[${new Date().toLocaleTimeString()}] ✅ Security validation complete. All connections authorized.`,
+        `[${new Date().toLocaleTimeString()}] 📝 Starting execution sequence...`,
+      ]);
 
-    const initialStatuses: Record<
-      string,
-      "pending" | "running" | "success" | "failed"
-    > = {};
-    nodes.forEach((n, idx) => {
-      initialStatuses[n.id] = idx === 0 ? "running" : "pending";
-    });
-    setNodeExecutionStatuses(initialStatuses);
-  }, []);
+      const initialStatuses: Record<
+        string,
+        "pending" | "running" | "success" | "failed"
+      > = {};
+      nodes.forEach((n, idx) => {
+        initialStatuses[n.id] = idx === 0 ? "running" : "pending";
+      });
+      setNodeExecutionStatuses(initialStatuses);
+
+      // Record the last run execution
+      if (savedWorkflowId) {
+        updateLastRun({ id: savedWorkflowId as any }).catch((err) => {
+          console.error("Failed to update last run:", err);
+        });
+      }
+
+      // Show a loading toast at top-center
+      const toastId = toast.loading("Running workflow...", {
+        position: "top-center",
+      });
+      runToastIdRef.current = toastId;
+    },
+    [savedWorkflowId, updateLastRun],
+  );
 
   // Simulation execution loop
   useEffect(() => {
@@ -406,12 +507,19 @@ export default function AgentPage() {
 
     const nodes = workflowData.nodes;
     if (currentStepIndex >= nodes.length) {
+      if (runToastIdRef.current) {
+        toast.success("Workflow executed successfully!", {
+          id: runToastIdRef.current,
+          position: "top-center",
+        });
+        runToastIdRef.current = null;
+      }
       setIsWorkflowRunning(false);
       setCurrentStepIndex(null);
       setExecutionLogs((prev) => [
         ...prev,
-        `[${new Date().toLocaleTimeString()}] ðŸŽ‰ WORKFLOW COMPLETED SUCCESSFULLY!`,
-        `[${new Date().toLocaleTimeString()}] ðŸ’¾ State variables persisted. Graph completed in ${(nodes.length * 1.5).toFixed(1)}s.`,
+        `[${new Date().toLocaleTimeString()}] 🎉 WORKFLOW COMPLETED SUCCESSFULLY!`,
+        `[${new Date().toLocaleTimeString()}] 💾 State variables persisted. Graph completed in ${(nodes.length * 1.5).toFixed(1)}s.`,
       ]);
       return;
     }
@@ -530,6 +638,14 @@ export default function AgentPage() {
             `[${new Date().toLocaleTimeString()}] âŒ Step ${currentStepIndex + 1}: ${currentNode.data?.label || currentNode.id} failed: ${err.message}`,
           ]);
 
+          if (runToastIdRef.current) {
+            toast.error(`Workflow failed: ${err.message || err}`, {
+              id: runToastIdRef.current,
+              position: "top-center",
+            });
+            runToastIdRef.current = null;
+          }
+
           // Stop execution on failure
           setIsWorkflowRunning(false);
           setCurrentStepIndex(null);
@@ -642,6 +758,14 @@ export default function AgentPage() {
             `[${new Date().toLocaleTimeString()}] ❌ Step ${currentStepIndex + 1}: ${currentNode.data?.label || currentNode.id} failed: ${err.message}`,
           ]);
 
+          if (runToastIdRef.current) {
+            toast.error(`Workflow failed: ${err.message || err}`, {
+              id: runToastIdRef.current,
+              position: "top-center",
+            });
+            runToastIdRef.current = null;
+          }
+
           // Stop execution on failure
           setIsWorkflowRunning(false);
           setCurrentStepIndex(null);
@@ -696,6 +820,14 @@ export default function AgentPage() {
 
     return () => clearTimeout(timer);
   }, [isWorkflowRunning, currentStepIndex, workflowData]);
+
+  // Clean up run toast if simulation stops (e.g. manually canceled)
+  useEffect(() => {
+    if (!isWorkflowRunning && runToastIdRef.current) {
+      toast.dismiss(runToastIdRef.current);
+      runToastIdRef.current = null;
+    }
+  }, [isWorkflowRunning]);
 
   // Terminal auto scroll
   useEffect(() => {
@@ -822,48 +954,50 @@ export default function AgentPage() {
 
   return (
     <div className="h-[calc(100vh-4rem)] w-[calc(100%+3rem)] -mx-6 -my-6 flex overflow-hidden bg-background relative">
-      <div className={`h-full w-full flex transition-opacity duration-700 ease-in-out ${isPageReady ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-      {/* Workflow choice dialog */}
-      <WorkflowChoiceDialog
-        open={showWorkflowChoice}
-        workflowTitle={workflowTitle}
-        onEditCurrent={() => {
-          const apps = extractAppsFromWorkflow(workflowData?.nodes ?? []);
-          if (apps.length > 0) setSelectedSuggestionApps(apps);
+      <div
+        className={`h-full w-full flex transition-opacity duration-700 ease-in-out ${isPageReady ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+      >
+        {/* Workflow choice dialog */}
+        <WorkflowChoiceDialog
+          open={showWorkflowChoice}
+          workflowTitle={workflowTitle}
+          onEditCurrent={() => {
+            const apps = extractAppsFromWorkflow(workflowData?.nodes ?? []);
+            if (apps.length > 0) setSelectedSuggestionApps(apps);
 
-          let finalPrompt = "edit this workflow as -> ";
-          if (pendingPrompt) {
-            const cleanPrompt = pendingPrompt.replace(
-              /^(edit this workflow as ->|edit this workflow as|edit this worklow as ->|edit this worklow as)\s*/i,
-              "",
-            );
-            finalPrompt += cleanPrompt;
-          }
+            let finalPrompt = "edit this workflow as -> ";
+            if (pendingPrompt) {
+              const cleanPrompt = pendingPrompt.replace(
+                /^(edit this workflow as ->|edit this workflow as|edit this worklow as ->|edit this worklow as)\s*/i,
+                "",
+              );
+              finalPrompt += cleanPrompt;
+            }
 
-          setInputVal(finalPrompt);
-          setIsEditingWorkflow(true);
-          setShowWorkflowChoice(false);
-          setPendingPrompt("");
-          setTimeout(() => {
-            if (textareaRef.current) textareaRef.current.focus();
-          }, 50);
-        }}
-        onStartFresh={() => {
-          setWorkflowData(null);
-          setWorkflowTitle("Untitled");
-          setIsStarred(false);
-          setSavedWorkflowId(null);
-          setShowWorkflowChoice(false);
-          setInputVal("");
-          sendMessage(pendingPrompt);
-        }}
-        onClose={() => {
-          setShowWorkflowChoice(false);
-          setPendingPrompt("");
-        }}
-      />
-      {/* Global CSS overrides and custom morph animations */}
-      <style>{`
+            setInputVal(finalPrompt);
+            setIsEditingWorkflow(true);
+            setShowWorkflowChoice(false);
+            setPendingPrompt("");
+            setTimeout(() => {
+              if (textareaRef.current) textareaRef.current.focus();
+            }, 50);
+          }}
+          onStartFresh={() => {
+            setWorkflowData(null);
+            setWorkflowTitle("Untitled");
+            setIsStarred(false);
+            setSavedWorkflowId(null);
+            setShowWorkflowChoice(false);
+            setInputVal("");
+            sendMessage(pendingPrompt);
+          }}
+          onClose={() => {
+            setShowWorkflowChoice(false);
+            setPendingPrompt("");
+          }}
+        />
+        {/* Global CSS overrides and custom morph animations */}
+        <style>{`
         .writing-vertical {
           writing-mode: vertical-rl;
           text-orientation: mixed;
@@ -894,500 +1028,573 @@ export default function AgentPage() {
         }
       `}</style>
 
-      <div ref={containerRef} className="h-full w-full flex relative">
-        {/* Left Pane: Agent Chat Space */}
-        <div className={`h-full flex-1 min-w-[350px] relative overflow-hidden ${isDragging ? "pointer-events-none select-none" : ""}`}>
+        <div ref={containerRef} className="h-full w-full flex relative">
+          {/* Left Pane: Agent Chat Space */}
           <div
-            ref={leftPaneRef}
-            className="h-full w-full flex flex-col items-center justify-between p-8 bg-background relative overflow-hidden"
+            className={`h-full flex-1 min-w-[350px] relative overflow-hidden ${isDragging ? "pointer-events-none select-none" : ""}`}
           >
-            <div className="w-full flex justify-between items-center pb-4 opacity-0">
-              <span className="text-xs text-muted-foreground">Agent Mode</span>
-            </div>
-
-            {/* Scrolling chat messages history list */}
-            {messages.length > 0 ? (
-              <AgentChatMessages
-                messages={messages}
-                isGenerating={isGenerating}
-                activeSteps={activeSteps}
-              />
-            ) : (
-              /* Welcome / loading area — skeleton fades out, real content fades in */
-              <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl my-auto">
-
-                {/* ── Logo (always visible) ── */}
-                <div className="relative flex items-center justify-center w-16 h-16 mb-4 group cursor-pointer">
-                  <div className="relative w-16 h-16 bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 p-0.5 shadow-2xl flex items-center justify-center overflow-hidden animate-shape-morph">
-                    <div className="absolute inset-0 rounded-[inherit] border border-white/20 bg-linear-to-b from-white/15 to-transparent" />
-                    <svg
-                      fill="currentColor"
-                      viewBox="0 0 36 48"
-                      className="w-9 h-11 text-white drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)] relative z-10"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <title>Aria Logo</title>
-                      <path d="m0 6c10.1433 9.4404 25.8567 9.4404 36 0-9.4404 10.1433-9.4404 25.8567 0 36-10.1433-9.4404-25.8567-9.4404-36 0 9.44041-10.1433 9.44041-25.8567 0-36z" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* ── Typewriter text — welcome ── */}
-                <div className="text-lg font-medium text-muted-foreground mb-8 text-center max-w-xl min-h-[2rem]">
-                  <Typewriter
-                    key="welcome"
-                    onInit={(typewriter) => {
-                      typewriter
-                        .typeString("How can I help you today?")
-                        .pauseFor(120000)
-                        .deleteAll()
-                        .typeString("Let's build a new database workflow.")
-                        .pauseFor(120000)
-                        .deleteAll()
-                        .typeString("Need help configuring your integrations?")
-                        .pauseFor(120000)
-                        .deleteAll()
-                        .typeString("Let's design a custom pipeline.")
-                        .pauseFor(120000)
-                        .start();
-                    }}
-                    options={{
-                      loop: true,
-                      delay: 80,
-                      deleteSpeed: 40,
-                      cursorClassName: "text-blue-500 font-normal animate-pulse",
-                    }}
-                  />
-                </div>
-
-                {/* ── Cards — suggestions ── */}
-                <div
-                  className={`grid w-full max-w-2xl gap-3.5 mb-6 ${
-                    isNarrow ? "grid-cols-1" : "grid-cols-3"
-                  }`}
-                >
-                  {suggestions.map((s, idx) => (
-                    <button
-                      key={s.title}
-                      type="button"
-                      onClick={() => setInputVal(s.prompt)}
-                      className={`flex text-left bg-card hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300 group cursor-pointer relative overflow-hidden shadow-xs w-full ${
-                        isNarrow
-                          ? "flex-row items-center p-2 rounded-lg border border-border h-11"
-                          : "flex-col items-start p-4 rounded-xl border border-border h-36"
-                      }`}
-                      style={{
-                        transitionDelay: `${idx * 80}ms`,
-                        animation: `fadeInUp 0.4s ease both`,
-                        animationDelay: `${idx * 80}ms`,
-                      }}
-                    >
-                      {isNarrow ? (
-                        <>
-                          <div
-                            className={`p-1.5 rounded-lg ${s.iconBg} shrink-0 transition-colors duration-300`}
-                          >
-                            <s.icon className={`h-3.5 w-3.5 ${s.iconColor}`} />
-                          </div>
-                          <span className="text-[11px] text-muted-foreground font-medium truncate ml-2.5 flex-1 pr-1 group-hover:text-primary transition-colors duration-300">
-                            {s.shortDescription}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <div
-                            className={`p-2 rounded-lg ${s.iconBg} mb-3 transition-colors duration-300`}
-                          >
-                            <s.icon className={`h-4.5 w-4.5 ${s.iconColor}`} />
-                          </div>
-                          <h4 className="font-semibold text-xs text-foreground mb-1 group-hover:text-primary transition-colors duration-300">
-                            {s.title}
-                          </h4>
-                          <p className="text-[11px] text-muted-foreground leading-normal">
-                            {s.description}
-                          </p>
-                        </>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Input Wrapper Container (with tabs on top) */}
-            <div className="w-full max-w-2xl flex flex-col items-center shrink-0">
-              {/* Tabs for Brain and Agent */}
-              <div className="flex items-center gap-1 self-start ml-4 -mb-px z-10">
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("brain")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-t-xl flex items-center gap-1.5 transition-all cursor-pointer select-none ${
-                    activeMode === "brain"
-                      ? "bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 text-white shadow-sm"
-                      : "bg-muted/40 text-muted-foreground hover:text-foreground border border-border border-b-transparent hover:bg-muted/60"
-                  }`}
-                >
-                  <Brain className="h-4 w-4" />
-                  Ask Brain
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("agent")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-t-xl flex items-center gap-1.5 transition-all cursor-pointer select-none ${
-                    activeMode === "agent"
-                      ? "bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 text-white shadow-sm"
-                      : "bg-muted/40 text-muted-foreground hover:text-foreground border border-border border-b-transparent hover:bg-muted/60"
-                  }`}
-                >
-                  <Bot className="h-4 w-4" />
-                  Agent
-                </button>
+            <div
+              ref={leftPaneRef}
+              className="h-full w-full flex flex-col items-center justify-between p-8 bg-background relative overflow-hidden"
+            >
+              <div className="w-full flex justify-between items-center pb-4 opacity-0">
+                <span className="text-xs text-muted-foreground">
+                  Agent Mode
+                </span>
               </div>
 
-              <div
-                className={`relative w-full bg-muted/30 border border-border rounded-2xl focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/15 transition-all shadow-sm ${
-                  isNarrow ? "p-2.5" : "p-3"
-                }`}
-              >
-                <Textarea
-                  ref={textareaRef}
-                  placeholder={
-                    activeMode === "agent"
-                      ? "Create Complex automated workflows in single go..."
-                      : "Get tasks suggestion from past activity"
-                  }
-                  value={inputVal}
-                  onChange={(e) => setInputVal(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  className={`w-full resize-none bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 p-1 pr-12 text-foreground placeholder:text-muted-foreground/80 overflow-y-auto ${
-                    isNarrow
-                      ? "min-h-[60px] max-h-[120px] text-sm"
-                      : "min-h-[80px] max-h-[140px] text-base md:text-sm"
-                  }`}
+              {/* Scrolling chat messages history list */}
+              {messages.length > 0 ? (
+                <AgentChatMessages
+                  messages={messages}
+                  isGenerating={isGenerating}
+                  activeSteps={activeSteps}
                 />
-
-                <div
-                  className={`flex items-center justify-between border-t border-border/40 ${
-                    isNarrow ? "mt-1.5 pt-2" : "mt-2 pt-2"
-                  }`}
-                >
-                  {/* Left attachment button */}
-                  <div className="flex items-center gap-2">
-                    {activeMode === "brain" && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
+              ) : (
+                /* Welcome / loading area — skeleton fades out, real content fades in */
+                <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl my-auto">
+                  {/* ── Logo (always visible) ── */}
+                  <div className="relative flex items-center justify-center w-16 h-16 mb-4 group cursor-pointer">
+                    <div className="relative w-16 h-16 bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 p-0.5 shadow-2xl flex items-center justify-center overflow-hidden animate-shape-morph">
+                      <div className="absolute inset-0 rounded-[inherit] border border-white/20 bg-linear-to-b from-white/15 to-transparent" />
+                      <svg
+                        fill="currentColor"
+                        viewBox="0 0 36 48"
+                        className="w-9 h-11 text-white drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)] relative z-10"
+                        xmlns="http://www.w3.org/2000/svg"
                       >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                    )}
+                        <title>Aria Logo</title>
+                        <path d="m0 6c10.1433 9.4404 25.8567 9.4404 36 0-9.4404 10.1433-9.4404 25.8567 0 36-10.1433-9.4404-25.8567-9.4404-36 0 9.44041-10.1433 9.44041-25.8567 0-36z" />
+                      </svg>
+                    </div>
+                  </div>
 
-                    {activeMode === "agent" ? (
-                      <div className="relative" ref={popoverRef}>
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setIsPopoverOpen(!isPopoverOpen)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setIsPopoverOpen(!isPopoverOpen);
-                            }
-                          }}
-                          className="border border-border/80 shadow-xs p-1.5 px-3 rounded-full flex items-center gap-2 bg-white/90 hover:bg-neutral-50 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 transition-colors select-none cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                          {selectedSuggestionApps.length === 0 ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                                {isNarrow ? "Apps" : "Apps: 0 selected"}
-                              </span>
-                              {!isNarrow && (
-                                <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-border/80 text-[10px] shrink-0">
-                                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                                  <span className="text-[9px] select-none shrink-0">
-                                    0 selected
-                                  </span>
+                  {/* ── Typewriter text — welcome ── */}
+                  <div className="text-lg font-medium text-muted-foreground mb-8 text-center max-w-xl min-h-[2rem]">
+                    <Typewriter
+                      key="welcome"
+                      onInit={(typewriter) => {
+                        typewriter
+                          .typeString("How can I help you today?")
+                          .pauseFor(120000)
+                          .deleteAll()
+                          .typeString("Let's build a new database workflow.")
+                          .pauseFor(120000)
+                          .deleteAll()
+                          .typeString(
+                            "Need help configuring your integrations?",
+                          )
+                          .pauseFor(120000)
+                          .deleteAll()
+                          .typeString("Let's design a custom pipeline.")
+                          .pauseFor(120000)
+                          .start();
+                      }}
+                      options={{
+                        loop: true,
+                        delay: 80,
+                        deleteSpeed: 40,
+                        cursorClassName:
+                          "text-blue-500 font-normal animate-pulse",
+                      }}
+                    />
+                  </div>
+
+                  {/* ── Cards — suggestions ── */}
+                  <div
+                    className={`grid w-full max-w-[680px] gap-3.5 mb-6 ${
+                      isNarrow ? "grid-cols-1" : "grid-cols-3"
+                    }`}
+                  >
+                    {(activeMode === "agent"
+                      ? agentSuggestions
+                      : brainSuggestions
+                    ).map((s, idx) => (
+                      <button
+                        key={s.title}
+                        type="button"
+                        onClick={() => {
+                          setInputVal(s.prompt);
+                          if (s.apps) {
+                            setSelectedSuggestionApps(s.apps);
+                          } else {
+                            setSelectedSuggestionApps([]);
+                          }
+                        }}
+                        className={`flex text-left bg-card hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300 group cursor-pointer relative overflow-hidden shadow-xs w-full ${
+                          isNarrow
+                            ? "flex-row items-center p-2 rounded-lg border border-border h-11"
+                            : "flex-col items-start p-4 rounded-xl border border-border h-40"
+                        }`}
+                        style={{
+                          transitionDelay: `${idx * 80}ms`,
+                          animation: `fadeInUp 0.4s ease both`,
+                          animationDelay: `${idx * 80}ms`,
+                        }}
+                      >
+                        {isNarrow ? (
+                          <>
+                            <div
+                              className={`p-1.5 rounded-lg ${s.iconBg} shrink-0 transition-colors duration-300`}
+                            >
+                              <s.icon
+                                className={`h-3.5 w-3.5 ${s.iconColor}`}
+                              />
+                            </div>
+                            <span className="text-[11px] text-muted-foreground font-medium truncate ml-2.5 flex-1 pr-1 group-hover:text-primary transition-colors duration-300">
+                              {s.shortDescription}
+                            </span>
+                            {s.images && (
+                              <div className="flex -space-x-1 ml-auto mr-2 shrink-0">
+                                {s.images.map((img, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-5 h-5 border border-card bg-white flex items-center justify-center shadow-xs overflow-hidden shrink-0 ${
+                                      img.includes("logo.svg") ? "rounded-sm" : "rounded"
+                                    }`}
+                                  >
+                                    <Image
+                                      src={img}
+                                      alt=""
+                                      width={12}
+                                      height={12}
+                                      className={`object-contain ${
+                                        img.includes("logo.svg") ? "invert" : ""
+                                      }`}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex justify-between items-start w-full">
+                              <div
+                                className={`p-2 rounded-lg ${s.iconBg} mb-3 transition-colors duration-300`}
+                              >
+                                <s.icon
+                                  className={`h-4.5 w-4.5 ${s.iconColor}`}
+                                />
+                              </div>
+                              {s.images && (
+                                <div className="flex -space-x-1.5 mt-1">
+                                  {s.images.map((img, i) => (
+                                    <div
+                                      key={i}
+                                      className={`w-5.5 h-5.5 border border-card bg-white flex items-center justify-center shadow-xs overflow-hidden ${
+                                        img.includes("logo.svg") ? "rounded-sm" : "rounded-full"
+                                      }`}
+                                    >
+                                      <Image
+                                        src={img}
+                                        alt=""
+                                        width={15}
+                                        height={15}
+                                        className={`object-contain ${
+                                          img.includes("logo.svg") ? "invert" : ""
+                                        }`}
+                                      />
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              {!isNarrow && (
-                                <span className="text-[10px] font-semibold text-muted-foreground select-none">
-                                  Apps ({selectedSuggestionApps.length}):
-                                </span>
-                              )}
-                              <div className="flex -space-x-0.5">
-                                {selectedSuggestionApps.map((app) => {
-                                  const iconSrc = connectorIcons[app];
-                                  if (!iconSrc) return null;
-                                  const isConnected =
-                                    user?.connecters?.includes(app);
-                                  return (
-                                    <button
-                                      key={app}
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openConnectionDialog(app);
-                                      }}
-                                      className="relative h-5 w-5 rounded overflow-hidden flex items-center justify-center shrink-0 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
-                                      title={`${app}${isConnected ? " (Connected) - Click to manage" : " (Not connected) - Click to connect"}`}
-                                    >
-                                      <Image
-                                        src={iconSrc}
-                                        alt={app}
-                                        width={16}
-                                        height={16}
-                                        className="object-contain"
-                                      />
-                                      {!isConnected && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                          <AlertCircle className="h-3 w-3 text-red-600 bg-white rounded-full shrink-0" />
-                                        </div>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {!isNarrow &&
-                                (() => {
-                                  const unconnected =
-                                    selectedSuggestionApps.filter(
-                                      (app) => !user?.connecters?.includes(app),
-                                    );
-                                  const hasUnconnectedApps =
-                                    unconnected.length > 0;
-                                  return hasUnconnectedApps ? (
-                                    <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-border/80 text-[10px] shrink-0">
-                                      <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                                      <span className="text-[9px] select-none shrink-0">
-                                        Connection Required
-                                      </span>
-                                    </div>
-                                  ) : null;
-                                })()}
-                            </div>
-                          )}
-                          <ChevronUp
-                            className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200"
-                            style={{
-                              transform: isPopoverOpen
-                                ? "rotate(180deg)"
-                                : "none",
+                            <h4 className="font-semibold text-xs text-foreground mb-1 group-hover:text-primary transition-colors duration-300">
+                              {s.title}
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground leading-normal">
+                              {s.description}
+                            </p>
+                          </>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Input Wrapper Container (with tabs on top) */}
+              <div className="w-full max-w-2xl flex flex-col items-center shrink-0">
+                {/* Tabs for Brain and Agent */}
+                <div className="flex items-center gap-1 self-start ml-4 -mb-px z-10">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode("brain")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-t-xl flex items-center gap-1.5 transition-all cursor-pointer select-none ${
+                      activeMode === "brain"
+                        ? "bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 text-white shadow-sm"
+                        : "bg-muted/40 text-muted-foreground hover:text-foreground border border-border border-b-transparent hover:bg-muted/60"
+                    }`}
+                  >
+                    <Brain className="h-4 w-4" />
+                    Ask Brain
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode("agent")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-t-xl flex items-center gap-1.5 transition-all cursor-pointer select-none ${
+                      activeMode === "agent"
+                        ? "bg-linear-to-tr from-blue-600 via-purple-500 to-red-500 text-white shadow-sm"
+                        : "bg-muted/40 text-muted-foreground hover:text-foreground border border-border border-b-transparent hover:bg-muted/60"
+                    }`}
+                  >
+                    <Bot className="h-4 w-4" />
+                    Agent
+                  </button>
+                </div>
+
+                <div
+                  className={`relative w-full bg-muted/30 border border-border rounded-2xl focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/15 transition-all shadow-sm ${
+                    isNarrow ? "p-2.5" : "p-3"
+                  }`}
+                >
+                  <Textarea
+                    ref={textareaRef}
+                    placeholder={
+                      activeMode === "agent"
+                        ? "Create Complex automated workflows in single go..."
+                        : "Get tasks suggestion from past activity"
+                    }
+                    value={inputVal}
+                    onChange={(e) => setInputVal(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    className={`w-full resize-none bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 p-1 pr-12 text-foreground placeholder:text-muted-foreground/80 overflow-y-auto ${
+                      isNarrow
+                        ? "min-h-[60px] max-h-[120px] text-sm"
+                        : "min-h-[80px] max-h-[140px] text-base md:text-sm"
+                    }`}
+                  />
+
+                  <div
+                    className={`flex items-center justify-between border-t border-border/40 ${
+                      isNarrow ? "mt-1.5 pt-2" : "mt-2 pt-2"
+                    }`}
+                  >
+                    {/* Left attachment button */}
+                    <div className="flex items-center gap-2">
+                      {activeMode === "brain" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {activeMode === "agent" ? (
+                        <div className="relative" ref={popoverRef}>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setIsPopoverOpen(!isPopoverOpen)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setIsPopoverOpen(!isPopoverOpen);
+                              }
                             }}
-                          />
-                        </div>
+                            className="border border-border/80 shadow-xs p-1.5 px-3 rounded-full flex items-center gap-2 bg-white/90 hover:bg-neutral-50 dark:bg-zinc-900/90 dark:hover:bg-zinc-800 transition-colors select-none cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          >
+                            {selectedSuggestionApps.length === 0 ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                                  {isNarrow ? "Apps" : "Apps: 0 selected"}
+                                </span>
+                                {!isNarrow && (
+                                  <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-border/80 text-[10px] shrink-0">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
+                                    <span className="text-[9px] select-none shrink-0">
+                                      0 selected
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                {!isNarrow && (
+                                  <span className="text-[10px] font-semibold text-muted-foreground select-none">
+                                    Apps ({selectedSuggestionApps.length}):
+                                  </span>
+                                )}
+                                <div className="flex -space-x-0.5">
+                                  {selectedSuggestionApps.map((app) => {
+                                    const iconSrc = connectorIcons[app];
+                                    if (!iconSrc) return null;
+                                    const isConnected =
+                                      user?.connecters?.includes(app);
+                                    return (
+                                      <button
+                                        key={app}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openConnectionDialog(app);
+                                        }}
+                                        className="relative h-5 w-5 rounded overflow-hidden flex items-center justify-center shrink-0 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                                        title={`${app}${isConnected ? " (Connected) - Click to manage" : " (Not connected) - Click to connect"}`}
+                                      >
+                                        <Image
+                                          src={iconSrc}
+                                          alt={app}
+                                          width={16}
+                                          height={16}
+                                          className="object-contain"
+                                        />
+                                        {!isConnected && (
+                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <AlertCircle className="h-3 w-3 text-red-600 bg-white rounded-full shrink-0" />
+                                          </div>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {!isNarrow &&
+                                  (() => {
+                                    const unconnected =
+                                      selectedSuggestionApps.filter(
+                                        (app) =>
+                                          !user?.connecters?.includes(app),
+                                      );
+                                    const hasUnconnectedApps =
+                                      unconnected.length > 0;
+                                    return hasUnconnectedApps ? (
+                                      <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-border/80 text-[10px] shrink-0">
+                                        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
+                                        <span className="text-[9px] select-none shrink-0">
+                                          Connection Required
+                                        </span>
+                                      </div>
+                                    ) : null;
+                                  })()}
+                              </div>
+                            )}
+                            <ChevronUp
+                              className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200"
+                              style={{
+                                transform: isPopoverOpen
+                                  ? "rotate(180deg)"
+                                  : "none",
+                              }}
+                            />
+                          </div>
 
-                        {isPopoverOpen && (
-                          <div className="absolute bottom-full left-0 mb-2.5 z-50 w-64 bg-card text-card-foreground border border-border rounded-xl shadow-xl p-3 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-foreground">
-                                Select Apps (Free limit: 3)
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setIsPopoverOpen(false)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-
-                            <div className="relative">
-                              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                              <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search apps..."
-                                className="w-full bg-muted/50 border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                              />
-                              {searchQuery && (
+                          {isPopoverOpen && (
+                            <div className="absolute bottom-full left-0 mb-2.5 z-50 w-64 bg-card text-card-foreground border border-border rounded-xl shadow-xl p-3 flex flex-col gap-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-foreground">
+                                  Select Apps (Free limit: 3)
+                                </span>
                                 <button
                                   type="button"
-                                  onClick={() => setSearchQuery("")}
-                                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setIsPopoverOpen(false)}
+                                  className="text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                  <X className="h-3 w-3" />
+                                  <X className="h-3.5 w-3.5" />
                                 </button>
-                              )}
-                            </div>
+                              </div>
 
-                            <div className="max-h-40 overflow-y-auto space-y-0.5 pr-1">
-                              {Object.keys(connectorIcons)
-                                .filter((app) =>
+                              <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                <input
+                                  type="text"
+                                  value={searchQuery}
+                                  onChange={(e) =>
+                                    setSearchQuery(e.target.value)
+                                  }
+                                  placeholder="Search apps..."
+                                  className="w-full bg-muted/50 border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                />
+                                {searchQuery && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="max-h-40 overflow-y-auto space-y-0.5 pr-1">
+                                {Object.keys(connectorIcons)
+                                  .filter((app) =>
+                                    app
+                                      .toLowerCase()
+                                      .includes(searchQuery.toLowerCase()),
+                                  )
+                                  .map((app) => {
+                                    const isSelected =
+                                      selectedSuggestionApps.includes(app);
+                                    const iconSrc = connectorIcons[app];
+                                    return (
+                                      <div
+                                        key={app}
+                                        onClick={() => {
+                                          if (isSelected) {
+                                            setSelectedSuggestionApps(
+                                              selectedSuggestionApps.filter(
+                                                (a) => a !== app,
+                                              ),
+                                            );
+                                          } else {
+                                            if (
+                                              selectedSuggestionApps.length >= 3
+                                            ) {
+                                              return;
+                                            }
+                                            setSelectedSuggestionApps([
+                                              ...selectedSuggestionApps,
+                                              app,
+                                            ]);
+                                          }
+                                        }}
+                                        className={`w-full flex items-center justify-between p-1.5 rounded-lg text-xs text-left transition-colors cursor-pointer ${
+                                          isSelected
+                                            ? "bg-primary/10 text-primary hover:bg-primary/15"
+                                            : "hover:bg-muted/50 text-foreground"
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {iconSrc && (
+                                            <div className="relative h-5 w-5 rounded overflow-hidden flex items-center justify-center shrink-0">
+                                              <Image
+                                                src={iconSrc}
+                                                alt={app}
+                                                width={16}
+                                                height={16}
+                                                className="object-contain"
+                                              />
+                                            </div>
+                                          )}
+                                          <span>{app}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {isSelected && (
+                                            <span className="text-[10px] font-bold text-primary mr-1">
+                                              Selected
+                                            </span>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              openConnectionDialog(app);
+                                            }}
+                                            className="px-2 py-0.5 text-[10px] bg-emerald-50 hover:bg-neutral-100 border border-neutral-300 rounded-md text-foreground transition-colors cursor-pointer shrink-0"
+                                          >
+                                            Connect
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                {Object.keys(connectorIcons).filter((app) =>
                                   app
                                     .toLowerCase()
                                     .includes(searchQuery.toLowerCase()),
-                                )
-                                .map((app) => {
-                                  const isSelected =
-                                    selectedSuggestionApps.includes(app);
-                                  const iconSrc = connectorIcons[app];
-                                  return (
-                                    <div
-                                      key={app}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          setSelectedSuggestionApps(
-                                            selectedSuggestionApps.filter(
-                                              (a) => a !== app,
-                                            ),
-                                          );
-                                        } else {
-                                          if (
-                                            selectedSuggestionApps.length >= 3
-                                          ) {
-                                            return;
-                                          }
-                                          setSelectedSuggestionApps([
-                                            ...selectedSuggestionApps,
-                                            app,
-                                          ]);
-                                        }
-                                      }}
-                                      className={`w-full flex items-center justify-between p-1.5 rounded-lg text-xs text-left transition-colors cursor-pointer ${
-                                        isSelected
-                                          ? "bg-primary/10 text-primary hover:bg-primary/15"
-                                          : "hover:bg-muted/50 text-foreground"
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        {iconSrc && (
-                                          <div className="relative h-5 w-5 rounded overflow-hidden flex items-center justify-center shrink-0">
-                                            <Image
-                                              src={iconSrc}
-                                              alt={app}
-                                              width={16}
-                                              height={16}
-                                              className="object-contain"
-                                            />
-                                          </div>
-                                        )}
-                                        <span>{app}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {isSelected && (
-                                          <span className="text-[10px] font-bold text-primary mr-1">
-                                            Selected
-                                          </span>
-                                        )}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            openConnectionDialog(app);
-                                          }}
-                                          className="px-2 py-0.5 text-[10px] bg-emerald-50 hover:bg-neutral-100 border border-neutral-300 rounded-md text-foreground transition-colors cursor-pointer shrink-0"
-                                        >
-                                          Connect
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              {Object.keys(connectorIcons).filter((app) =>
-                                app
-                                  .toLowerCase()
-                                  .includes(searchQuery.toLowerCase()),
-                              ).length === 0 && (
-                                <div className="text-[10px] text-muted-foreground text-center py-4">
-                                  No apps found
+                                ).length === 0 && (
+                                  <div className="text-[10px] text-muted-foreground text-center py-4">
+                                    No apps found
+                                  </div>
+                                )}
+                              </div>
+
+                              {selectedSuggestionApps.length >= 3 && (
+                                <div className="mt-1 pt-1.5 border-t border-border/40 text-[9px] text-amber-500 dark:text-amber-400 font-medium leading-snug">
+                                  âš ï¸ Max 3 apps selected. For higher limits
+                                  upgrade!
                                 </div>
                               )}
                             </div>
-
-                            {selectedSuggestionApps.length >= 3 && (
-                              <div className="mt-1 pt-1.5 border-t border-border/40 text-[9px] text-amber-500 dark:text-amber-400 font-medium leading-snug">
-                                âš ï¸ Max 3 apps selected. For higher limits
-                                upgrade!
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : isNarrow ? (
-                      <button
-                        type="button"
-                        onClick={() => setIsReadWriteActive(!isReadWriteActive)}
-                        className={`w-8 h-4.5 rounded-full transition-colors duration-200 relative cursor-pointer shrink-0 outline-none border border-border shadow-xs ${
-                          isReadWriteActive ? "bg-emerald-500" : "bg-rose-500"
-                        }`}
-                        title="Toggle Read & Write Mode"
-                      >
-                        <span
-                          className={`block w-3.5 h-3.5 bg-white rounded-full shadow-xs transition-transform duration-200 absolute top-[1px] left-0.5 ${
-                            isReadWriteActive
-                              ? "translate-x-3.5"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    ) : (
-                      <div className="border border-border shadow-sm p-1 pr-2.5 rounded-full flex items-center gap-2 bg-white">
-                        <div className="flex space-x-0.5">
-                          <Image
-                            className="inline-block h-4.5 w-4.5 object-contain bg-background"
-                            src="/outlook.jpeg"
-                            alt="Outlook"
-                            width={17}
-                            height={17}
-                          />
-                          <Image
-                            className="inline-block h-4.5 w-4.5 object-contain bg-background"
-                            src="/gmail.png"
-                            alt="Gmail"
-                            width={17}
-                            height={17}
-                          />
-                          <Image
-                            className="inline-block h-4.5 w-4.5 object-contain bg-background"
-                            src="/calendar.png"
-                            alt="Calendar"
-                            width={17}
-                            height={17}
-                          />
+                          )}
                         </div>
-                        <span className="text-[10px] font-medium text-muted-foreground select-none">
-                          Read & Write
-                        </span>
+                      ) : isNarrow ? (
                         <button
                           type="button"
                           onClick={() =>
                             setIsReadWriteActive(!isReadWriteActive)
                           }
-                          className={`w-8 h-4.5 rounded-full transition-colors duration-200 relative cursor-pointer shrink-0 outline-none ${
+                          className={`w-8 h-4.5 rounded-full transition-colors duration-200 relative cursor-pointer shrink-0 outline-none border border-border shadow-xs ${
                             isReadWriteActive ? "bg-emerald-500" : "bg-rose-500"
                           }`}
+                          title="Toggle Read & Write Mode"
                         >
                           <span
-                            className={`block w-3.5 h-3.5 bg-white rounded-full transition-transform duration-200 absolute top-0.5 left-0.5 ${
+                            className={`block w-3.5 h-3.5 bg-white rounded-full shadow-xs transition-transform duration-200 absolute top-[1px] left-0.5 ${
                               isReadWriteActive
-                                ? "translate-x-3"
+                                ? "translate-x-3.5"
                                 : "translate-x-0"
                             }`}
                           />
                         </button>
-                      </div>
-                    )}
-                  </div>
+                      ) : (
+                        <div className="border border-border shadow-sm p-1 pr-2.5 rounded-full flex items-center gap-2 bg-white">
+                          <div className="flex space-x-0.5">
+                            <Image
+                              className="inline-block h-4.5 w-4.5 object-contain bg-background"
+                              src="/outlook.jpeg"
+                              alt="Outlook"
+                              width={17}
+                              height={17}
+                            />
+                            <Image
+                              className="inline-block h-4.5 w-4.5 object-contain bg-background"
+                              src="/gmail.png"
+                              alt="Gmail"
+                              width={17}
+                              height={17}
+                            />
+                            <Image
+                              className="inline-block h-4.5 w-4.5 object-contain bg-background"
+                              src="/calendar.png"
+                              alt="Calendar"
+                              width={17}
+                              height={17}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-muted-foreground select-none">
+                            Read & Write
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIsReadWriteActive(!isReadWriteActive)
+                            }
+                            className={`w-8 h-4.5 rounded-full transition-colors duration-200 relative cursor-pointer shrink-0 outline-none ${
+                              isReadWriteActive
+                                ? "bg-emerald-500"
+                                : "bg-rose-500"
+                            }`}
+                          >
+                            <span
+                              className={`block w-3.5 h-3.5 bg-white rounded-full transition-transform duration-200 absolute top-0.5 left-0.5 ${
+                                isReadWriteActive
+                                  ? "translate-x-3"
+                                  : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Right options / Actions */}
-                  <div className="flex items-center gap-1 relative">
-                    <Select
-                      value={selectedModel}
-                      onValueChange={setSelectedModel}
-                    >
-                      <SelectTrigger
-                        className="
+                    {/* Right options / Actions */}
+                    <div className="flex items-center gap-1 relative">
+                      <Select
+                        value={selectedModel}
+                        onValueChange={setSelectedModel}
+                      >
+                        <SelectTrigger
+                          className="
       h-9
       px-3
       border-0
@@ -1399,184 +1606,186 @@ export default function AgentPage() {
       focus:ring-0
       cursor-pointer
     "
-                      >
-                        <div className="flex items-center gap-2">
-                          <Image
-                            src={selected.logo}
-                            alt=""
-                            width={16}
-                            height={16}
-                            className="rounded-sm"
-                          />
+                        >
+                          <div className="flex items-center gap-2">
+                            <Image
+                              src={selected.logo}
+                              alt=""
+                              width={16}
+                              height={16}
+                              className="rounded-sm"
+                            />
 
-                          <span className="text-[13px] font-medium">
-                            {isNarrow ? selected.short : selected.label}
-                          </span>
-                        </div>
+                            <span className="text-[13px] font-medium">
+                              {isNarrow ? selected.short : selected.label}
+                            </span>
+                          </div>
 
-                        {/* <ChevronDown className="h-3.5 w-3.5 opacity-60" /> */}
-                      </SelectTrigger>
+                          {/* <ChevronDown className="h-3.5 w-3.5 opacity-60" /> */}
+                        </SelectTrigger>
 
-                      <SelectContent
-                        position="popper"
-                        side="top"
-                        avoidCollisions={false}
-                        className="
+                        <SelectContent
+                          position="popper"
+                          side="top"
+                          avoidCollisions={false}
+                          className="
       w-[250px]
       rounded-xl
       p-1
       shadow-xl
     "
-                      >
-                        {models.map((model) => (
-                          <SelectItem
-                            key={model.value}
-                            value={model.value}
-                            disabled={model.disabled}
-                            className="
+                        >
+                          {models.map((model) => (
+                            <SelectItem
+                              key={model.value}
+                              value={model.value}
+                              disabled={model.disabled}
+                              className="
           h-10
           rounded-lg
           px-2
           cursor-pointer
         "
-                          >
-                            <div className="flex w-full items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Image
-                                  src={model.logo}
-                                  alt=""
-                                  width={18}
-                                  height={18}
-                                />
+                            >
+                              <div className="flex w-full items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <Image
+                                    src={model.logo}
+                                    alt=""
+                                    width={18}
+                                    height={18}
+                                  />
 
-                                <span
-                                  className={`text-[13px] ${
-                                    model.disabled
-                                      ? "text-muted-foreground"
-                                      : "font-medium"
-                                  }`}
-                                >
-                                  {isNarrow ? model.short : model.label}
-                                </span>
+                                  <span
+                                    className={`text-[13px] ${
+                                      model.disabled
+                                        ? "text-muted-foreground"
+                                        : "font-medium"
+                                    }`}
+                                  >
+                                    {isNarrow ? model.short : model.label}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center">
+                                  {model.disabled ? (
+                                    <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                                  ) : (
+                                    selectedModel === model.value && (
+                                      <Check className="h-4 w-4" />
+                                    )
+                                  )}
+                                </div>
                               </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                              <div className="flex items-center">
-                                {model.disabled ? (
-                                  <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
-                                ) : (
-                                  selectedModel === model.value && (
-                                    <Check className="h-4 w-4" />
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {/* ------ */}
-                    <Button
-                      type="button"
-                      size="icon"
-                      onClick={() => handleSend()}
-                      className="h-8 w-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/95 transition-all shadow-sm ml-1 cursor-pointer disabled:opacity-50"
-                      disabled={
-                        !inputVal.trim() ||
-                        isGenerating ||
-                        (isAgentMode &&
-                          (hasUnconnectedApps ||
-                            selectedSuggestionApps.length === 0))
-                      }
-                    >
-                      <SendHorizontal className="h-4 w-4" />
-                    </Button>
+                      {/* ------ */}
+                      <Button
+                        type="button"
+                        size="icon"
+                        onClick={() => handleSend()}
+                        className="h-8 w-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/95 transition-all shadow-sm ml-1 cursor-pointer disabled:opacity-50"
+                        disabled={
+                          !inputVal.trim() ||
+                          isGenerating ||
+                          (isAgentMode &&
+                            (hasUnconnectedApps ||
+                              selectedSuggestionApps.length === 0))
+                        }
+                      >
+                        <SendHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Separator / Sash */}
-        {isPageReady && isRightOpen && (
-          <div
-            onMouseDown={startResizing}
-            className="w-px h-full bg-border relative cursor-col-resize z-40 shrink-0 select-none group"
-          >
-            {/* Grab hit-area */}
-            <div className="absolute top-0 bottom-0 -left-1.5 w-3 h-full" />
-            {/* Visual highlight line */}
-            <div 
-              className={`absolute top-0 bottom-0 -left-[1px] w-[3px] bg-blue-600 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${
-                isDragging ? "opacity-100!" : ""
-              }`}
-            />
-          </div>
-        )}
+          {/* Separator / Sash */}
+          {isPageReady && isRightOpen && (
+            <div
+              onMouseDown={startResizing}
+              className="w-px h-full bg-border relative cursor-col-resize z-40 shrink-0 select-none group"
+            >
+              {/* Grab hit-area */}
+              <div className="absolute top-0 bottom-0 -left-1.5 w-3 h-full" />
+              {/* Visual highlight line */}
+              <div
+                className={`absolute top-0 bottom-0 -left-[1px] w-[3px] bg-blue-600 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${
+                  isDragging ? "opacity-100!" : ""
+                }`}
+              />
+            </div>
+          )}
 
-        {/* Right Pane: Workflow Panel — only mount after page is ready */}
-        {isPageReady && (
-          <div 
-            ref={rightPanelRef}
-            className={`h-full shrink-0 overflow-hidden will-change-[width] ${isDragging ? "pointer-events-none select-none" : "transition-[width] duration-300 ease-in-out"}`}
-            style={{ 
-              width: `${rightWidth}px`,
-              maxWidth: isRightOpen ? "calc(100% - 350px)" : undefined
-            }}
-          >
-            <WorkflowPanel
-              isDragging={isDragging}
-              isRightOpen={isRightOpen}
-              setIsRightOpen={setIsRightOpen}
-              isPageReady={isPageReady}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              workflowData={workflowData}
-              setWorkflowData={setWorkflowData}
-              isSaving={isSaving}
-              isWorkflowRunning={isWorkflowRunning}
-              setIsWorkflowRunning={setIsWorkflowRunning}
-              setCurrentStepIndex={setCurrentStepIndex}
-              nodeExecutionStatuses={nodeExecutionStatuses}
-              isWorkflowReadyToRun={isWorkflowReadyToRun}
-              startSimulation={startSimulation}
-              handleNodesChange={handleNodesChange}
-              onSelectSuggestion={(prompt, apps) => {
-                if (activeMode === "brain") setActiveMode("agent");
-                setSelectedSuggestionApps(apps || []);
-                setInputVal(prompt);
+          {/* Right Pane: Workflow Panel — only mount after page is ready */}
+          {isPageReady && (
+            <div
+              ref={rightPanelRef}
+              className={`h-full shrink-0 overflow-hidden will-change-[width] ${isDragging ? "pointer-events-none select-none" : "transition-[width] duration-300 ease-in-out"}`}
+              style={{
+                width: `${rightWidth}px`,
+                maxWidth: isRightOpen ? "calc(100% - 350px)" : undefined,
               }}
-              onEditWorkflow={(text) => {
-                if (activeMode === "brain") setActiveMode("agent");
-                const apps = extractAppsFromWorkflow(workflowData?.nodes ?? []);
-                if (apps.length > 0) setSelectedSuggestionApps(apps);
-
-                let finalPrompt = "edit this workflow as -> ";
-                if (text) {
-                  const cleanPrompt = text.replace(
-                    /^(edit this workflow as ->|edit this workflow as|edit this worklow as ->|edit this worklow as)\s*/i,
-                    "",
+            >
+              <WorkflowPanel
+                isDragging={isDragging}
+                isRightOpen={isRightOpen}
+                setIsRightOpen={setIsRightOpen}
+                isPageReady={isPageReady}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                workflowData={workflowData}
+                setWorkflowData={setWorkflowData}
+                isSaving={isSaving}
+                isWorkflowRunning={isWorkflowRunning}
+                setIsWorkflowRunning={setIsWorkflowRunning}
+                setCurrentStepIndex={setCurrentStepIndex}
+                nodeExecutionStatuses={nodeExecutionStatuses}
+                isWorkflowReadyToRun={isWorkflowReadyToRun}
+                startSimulation={startSimulation}
+                handleNodesChange={handleNodesChange}
+                onSelectSuggestion={(prompt, apps) => {
+                  if (activeMode === "brain") setActiveMode("agent");
+                  setSelectedSuggestionApps(apps || []);
+                  setInputVal(prompt);
+                }}
+                onEditWorkflow={(text) => {
+                  if (activeMode === "brain") setActiveMode("agent");
+                  const apps = extractAppsFromWorkflow(
+                    workflowData?.nodes ?? [],
                   );
-                  finalPrompt += cleanPrompt;
-                }
+                  if (apps.length > 0) setSelectedSuggestionApps(apps);
 
-                setInputVal(finalPrompt);
-                setIsEditingWorkflow(true);
-                setTimeout(() => {
-                  if (textareaRef.current) textareaRef.current.focus();
-                }, 50);
-              }}
-              savedWorkflowId={savedWorkflowId}
-              setSavedWorkflowId={setSavedWorkflowId}
-              isStarred={isStarred}
-              setIsStarred={setIsStarred}
-              workflowTitle={workflowTitle}
-              setWorkflowTitle={setWorkflowTitle}
-            />
-          </div>
-        )}
-      </div>
+                  let finalPrompt = "edit this workflow as -> ";
+                  if (text) {
+                    const cleanPrompt = text.replace(
+                      /^(edit this workflow as ->|edit this workflow as|edit this worklow as ->|edit this worklow as)\s*/i,
+                      "",
+                    );
+                    finalPrompt += cleanPrompt;
+                  }
+
+                  setInputVal(finalPrompt);
+                  setIsEditingWorkflow(true);
+                  setTimeout(() => {
+                    if (textareaRef.current) textareaRef.current.focus();
+                  }, 50);
+                }}
+                savedWorkflowId={savedWorkflowId}
+                setSavedWorkflowId={setSavedWorkflowId}
+                isStarred={isStarred}
+                setIsStarred={setIsStarred}
+                workflowTitle={workflowTitle}
+                setWorkflowTitle={setWorkflowTitle}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Centered Loading Overlay */}

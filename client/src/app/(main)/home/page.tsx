@@ -6,6 +6,7 @@ import { RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useState, useCallback, useRef } from "react";
 import { ImportantActionsSection } from "./ImportantActionsSection";
+import { BrowserRecapSection } from "./BrowserRecapSection";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ export default function HomePage() {
             alt="logo"
             width={30}
             height={30}
-            className=" shrink-0"
+            className=" shrink-0 invert"
           />
         </div>
         <div className="w-full">
@@ -170,6 +171,9 @@ export default function HomePage() {
         triggerFetchRef={triggerFetchRef}
         onSyncComplete={handleSyncComplete}
       />
+
+      {/* ── Browser Activity Recap & Standup ── */}
+      <BrowserRecapSection />
     </div>
   );
 }

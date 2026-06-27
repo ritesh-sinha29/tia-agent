@@ -61,8 +61,12 @@ import {
 } from "lucide-react";
 
 const STATUS_ICONS: Record<TaskStatus, React.ReactNode> = {
-  "not-started": <CircleDashed className="w-3.5 h-3.5 text-neutral-400 shrink-0" />,
-  "in-progress": <CircleDot className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />,
+  "not-started": (
+    <CircleDashed className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+  ),
+  "in-progress": (
+    <CircleDot className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
+  ),
   "on-hold": <CirclePause className="w-3.5 h-3.5 text-yellow-500 shrink-0" />,
   delayed: <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
   completed: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
@@ -124,8 +128,9 @@ export const TableTab = ({
   setSelectedTaskIds,
 }: TableTabProps) => {
   const [page, setPage] = useState(0);
-  const [selectedTaskForSheet, setSelectedTaskForSheet] =
-    useState<Task | null>(null);
+  const [selectedTaskForSheet, setSelectedTaskForSheet] = useState<Task | null>(
+    null,
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deleteTask = useMutation((api as any).tasks.deleteTask);
@@ -151,10 +156,7 @@ export const TableTab = ({
   };
 
   const totalPages = Math.ceil(tasks.length / PAGE_SIZE);
-  const paginatedTasks = tasks.slice(
-    page * PAGE_SIZE,
-    (page + 1) * PAGE_SIZE,
-  );
+  const paginatedTasks = tasks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const toggleTask = (taskId: Id<"tasks">) => {
     setSelectedTaskIds((prev) =>
@@ -228,7 +230,8 @@ export const TableTab = ({
                       Empty Workspace
                     </p>
                     <p className="text-muted-foreground text-sm text-center max-w-xs">
-                      Create your first task and start managing your work the right way.
+                      Create your first task and start managing your work the
+                      right way.
                     </p>
                     <div className="flex items-center gap-4 mt-2">
                       <CreateTaskDialog
@@ -307,7 +310,7 @@ export const TableTab = ({
                     <TableCell className="px-4 border-r border-b dark:border-neutral-700 border-neutral-200">
                       <Badge
                         className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[12px] flex items-center gap-1.5 border font-medium capitalize whitespace-nowrap dark:bg-primary/10 bg-primary/5 dark:text-primary text-primary/80",
+                          "px-2.5 py-0.5 rounded-full text-[12px] flex items-center gap-1.5 border font-semibold capitalize whitespace-nowrap dark:bg-neutral-800/80 bg-neutral-100/80 dark:text-neutral-200 text-neutral-800 border-neutral-300 dark:border-neutral-700",
                         )}
                       >
                         {STATUS_ICONS[task.status as TaskStatus]}
@@ -315,8 +318,8 @@ export const TableTab = ({
                           task.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-4 text-[12px] font-medium text-muted-foreground dark:group-hover:text-primary group-hover:text-foreground transition-colors border-r border-b dark:border-neutral-700 border-neutral-200">
-                      <span className="flex items-center justify-center gap-1.5 opacity-80">
+                    <TableCell className="px-4 text-[12px] font-semibold text-neutral-600 dark:text-neutral-300 dark:group-hover:text-primary group-hover:text-foreground transition-colors border-r border-b dark:border-neutral-700 border-neutral-200">
+                      <span className="flex items-center justify-center gap-1.5">
                         {format(task.estimation.startDate, "MMM d")} —{" "}
                         {format(task.estimation.endDate, "MMM d")}
                       </span>

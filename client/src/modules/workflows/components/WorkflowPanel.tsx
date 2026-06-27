@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { toast } from "sonner";
 import {
   Check,
   ChevronDown,
@@ -103,13 +104,27 @@ export default function WorkflowPanel({
 }: WorkflowPanelProps) {
   const toggleStarMutation = useMutation(api.workflows.toggleStar);
   const renameWorkflowMutation = useMutation(api.workflows.renameWorkflow);
+  const updateScheduleMutation = useMutation(api.workflows.updateSchedule);
   const savedWorkflows = useQuery(api.workflows.getWorkflows);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [isWorkflowDropdownOpen, setIsWorkflowDropdownOpen] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState<Date>();
-  const [frequency, setFrequency] = useState("once");
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [scheduleFrequency, setScheduleFrequency] = useState("once");
+
+  const currentWorkflow = savedWorkflows?.find((w) => w._id === savedWorkflowId);
+
+  useEffect(() => {
+    if (currentWorkflow?.scheduled) {
+      setScheduleTime(currentWorkflow.scheduled.time);
+      setScheduleFrequency(currentWorkflow.scheduled.frequency);
+    } else {
+      setScheduleTime("09:00");
+      setScheduleFrequency("once");
+    }
+  }, [currentWorkflow, savedWorkflowId]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -235,7 +250,7 @@ export default function WorkflowPanel({
                     className="font-semibold text-sm text-foreground bg-transparent border-b border-blue-500 outline-none w-36"
                   />
                 ) : (
-                  <span 
+                  <span
                     onClick={() => {
                       setTitleDraft(workflowTitle);
                       setIsEditingTitle(true);
@@ -495,7 +510,7 @@ export default function WorkflowPanel({
               ) : (
                 <div className="flex items-center gap-2">
                   {/* Schedule */}
-                  <Popover>
+                  <Popover open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -506,7 +521,10 @@ export default function WorkflowPanel({
                       </Button>
                     </PopoverTrigger>
 
-                    <PopoverContent className="w-72 p-4 rounded-sm!" align="end">
+                    <PopoverContent
+                      className="w-72 p-4 rounded-sm!"
+                      align="end"
+                    >
                       <div className="space-y-4">
                         <div>
                           <h4 className="font-semibold text-sm">
@@ -520,13 +538,20 @@ export default function WorkflowPanel({
                         <div className="space-y-2">
                           <Label>Time</Label>
 
-                          <Input type="time" defaultValue="09:00" />
+                          <Input
+                            type="time"
+                            value={scheduleTime}
+                            onChange={(e) => setScheduleTime(e.target.value)}
+                          />
                         </div>
 
                         <div className="space-y-2">
                           <Label>Repeat</Label>
 
-                          <Select defaultValue="once">
+                          <Select
+                            value={scheduleFrequency}
+                            onValueChange={setScheduleFrequency}
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -535,17 +560,44 @@ export default function WorkflowPanel({
                               <SelectItem value="once">Once</SelectItem>
                               <SelectItem value="daily">Every Day</SelectItem>
                               <SelectItem value="weekly">Every Week</SelectItem>
-                              <SelectItem value="monthly">Every Month</SelectItem>
+                              <SelectItem value="monthly">
+                                Every Month
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
 
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsScheduleOpen(false)}
+                          >
                             Cancel
                           </Button>
 
-                          <Button size="sm">Save</Button>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (!savedWorkflowId) {
+                                toast.error("Please wait for the workflow to be saved first.");
+                                return;
+                              }
+                              try {
+                                await updateScheduleMutation({
+                                  id: savedWorkflowId as any,
+                                  time: scheduleTime,
+                                  frequency: scheduleFrequency,
+                                });
+                                toast.success(`Workflow scheduled successfully at ${scheduleTime} (${scheduleFrequency === "once" ? "Once" : scheduleFrequency})!`);
+                                setIsScheduleOpen(false);
+                              } catch (err: any) {
+                                toast.error(`Failed to schedule workflow: ${err.message || err}`);
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
                         </div>
                       </div>
                     </PopoverContent>
