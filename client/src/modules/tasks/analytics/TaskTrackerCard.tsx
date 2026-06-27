@@ -10,17 +10,17 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import type { Task } from "../taskTypes";
 
-interface PaceTrackerCardProps {
+interface TaskTrackerCardProps {
   tasks: Task[];
   createdAt: number;
   deadline: number;
 }
 
-export const PaceTrackerCard = ({
+export const TaskTrackerCard = ({
   tasks,
   createdAt,
   deadline,
-}: PaceTrackerCardProps) => {
+}: TaskTrackerCardProps) => {
   const now = Date.now();
   const msInDay = 1000 * 60 * 60 * 24;
 

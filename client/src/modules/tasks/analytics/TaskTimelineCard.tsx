@@ -343,17 +343,17 @@ function TimelineDayAxis({
   );
 }
 
-interface ProjectTimelineCardProps {
+interface TaskTimelineCardProps {
   tasks: Task[];
   projectCreatedAt: number;
   projectDeadline: number;
 }
 
-export const ProjectTimelineCard = ({
+export const TaskTimelineCard = ({
   tasks,
   projectCreatedAt,
   projectDeadline,
-}: ProjectTimelineCardProps) => {
+}: TaskTimelineCardProps) => {
   const config = useTimelineConfig(projectCreatedAt, projectDeadline);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dayInterval, setDayInterval] = useState<number>(3);

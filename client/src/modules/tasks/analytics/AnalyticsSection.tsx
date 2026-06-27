@@ -5,10 +5,10 @@ import { Activity } from "lucide-react";
 import { subDays } from "date-fns";
 import type { Task } from "../taskTypes";
 
-import { MilestoneTrajectoryCard } from "./MilestoneTrajectoryCard";
+import { TaskDistributionCard } from "./TaskDistributionCard";
 import { DelayDebtCard } from "./DelayDebtCard";
-import { PaceTrackerCard } from "./PaceTrackerCard";
-import { ProjectTimelineCard } from "./ProjectTimelineCard";
+import { TaskTrackerCard } from "./TaskTrackerCard";
+import { TaskTimelineCard } from "./TaskTimelineCard";
 
 // ==========================================
 // 1. MOCK DATA GENERATOR
@@ -159,15 +159,11 @@ export default function AnalyticsSection({ tasks }: AnalyticsSectionProps) {
       {/* Grid Bento Layout */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Row 1: The Three Cards */}
-        <MilestoneTrajectoryCard
-          tasks={activeTasks}
-          createdAt={projectCreatedAt}
-          deadline={projectDeadline}
-        />
+        <TaskDistributionCard tasks={activeTasks} />
         
         <DelayDebtCard tasks={activeTasks} />
 
-        <PaceTrackerCard
+        <TaskTrackerCard
           tasks={activeTasks}
           createdAt={projectCreatedAt}
           deadline={projectDeadline}
@@ -175,7 +171,7 @@ export default function AnalyticsSection({ tasks }: AnalyticsSectionProps) {
 
         {/* Row 2: The Timeline logs box (spans all 3 cols) */}
         <div className="col-span-1 md:col-span-3">
-          <ProjectTimelineCard
+          <TaskTimelineCard
             tasks={activeTasks}
             projectCreatedAt={projectCreatedAt}
             projectDeadline={projectDeadline}
