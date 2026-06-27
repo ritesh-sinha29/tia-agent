@@ -16,6 +16,7 @@ import {
   Trash2,
   SlidersHorizontal,
   Filter,
+  ChartNoAxesColumnIncreasing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,17 +46,20 @@ import { CreateTaskDialog } from "./CreateTaskDialog";
 import { ListTab } from "./TaskListView";
 import { TableTab } from "./TableTab";
 import { KanbanTab } from "./KanbanTab";
+import AnalyticsSection from "./analytics/AnalyticsSection";
+
 
 const TABS = [
   { id: "List", label: "List", icon: LayoutList },
   { id: "Table", label: "Table", icon: Table },
   { id: "Kanban", label: "Kanban", icon: KanbanSquare },
+  { id: "Analysis", label: "Analysis", icon: ChartNoAxesColumnIncreasing },
 ];
 
 export function TasksPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tasks = useQuery((api as any).tasks.getTasks) as Task[] | undefined;
-  const [activeTab, setActiveTab] = useState<"List" | "Table" | "Kanban">(
+  const [activeTab, setActiveTab] = useState<"List" | "Table" | "Kanban" | "Analysis">(
     "List",
   );
   const [selectedTaskIds, setSelectedTaskIds] = useState<Id<"tasks">[]>([]);
@@ -273,6 +277,7 @@ export function TasksPage() {
               />
             )}
             {activeTab === "Kanban" && <KanbanTab tasks={filtered} />}
+            {activeTab === "Analysis" && <AnalyticsSection tasks={filtered} />}
           </div>
         )}
       </div>

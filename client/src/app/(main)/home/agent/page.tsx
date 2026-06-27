@@ -78,6 +78,7 @@ const brainSuggestions = [
     iconColor: "text-blue-500",
     iconBg: "bg-blue-500/10 group-hover:bg-blue-500/20",
     images: ["/gmail.png", "/calendar.png", "/slack.png"],
+    apps: [],
   },
 ];
 

@@ -406,7 +406,6 @@ export default function WorkflowsPage() {
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 rounded-md" align="start">
               <Calendar
-                initialFocus
                 mode="range"
                 selected={{
                   from: dateRange.from,
