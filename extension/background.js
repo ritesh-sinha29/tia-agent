@@ -15,6 +15,7 @@ const lastActiveTabInWindow = new Map(); // windowId -> tabId
 let userId = null;
 let userName = "";
 let blacklist = [];
+// for production update url here 
 let convexUrl = "https://wandering-antelope-3.convex.site"; // Default fallback
 
 // Initialize storage settings
