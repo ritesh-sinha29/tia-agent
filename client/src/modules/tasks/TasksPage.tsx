@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { motion, AnimatePresence } from "motion/react";
@@ -70,6 +70,16 @@ export function TasksPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deleteTasks = useMutation((api as any).tasks.deleteTasks);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const migrateTasks = useMutation((api as any).tasks.migrateTasks);
+
+  useEffect(() => {
+    if (tasks && tasks.some((t) => t.userId.startsWith("user_"))) {
+      migrateTasks().catch((err) => {
+        console.error("Failed to migrate legacy tasks:", err);
+      });
+    }
+  }, [tasks, migrateTasks]);
 
   const handleDeleteTasks = async () => {
     try {
@@ -132,7 +142,7 @@ export function TasksPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => {
-                  setActiveTab(tab.id as "List" | "Table" | "Kanban");
+                  setActiveTab(tab.id as "List" | "Table" | "Kanban" | "Analysis");
                 }}
                 className={cn(
                   "flex items-center gap-2 px-6 py-1.5 rounded-sm! text-sm font-medium transition-all duration-200 select-none cursor-pointer outline-none",
@@ -225,26 +235,26 @@ export function TasksPage() {
                   Delete {selectedTaskIds.length} Tasks
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="bg-neutral-900 border-neutral-800 shadow-2xl">
+              <AlertDialogContent className="bg-white border border-neutral-200 shadow-xl max-w-md rounded-xl p-6">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-primary">
+                  <AlertDialogTitle className="text-neutral-900 font-semibold">
                     Are you absolutely sure?
                   </AlertDialogTitle>
-                  <AlertDialogDescription className="text-muted-foreground">
+                  <AlertDialogDescription className="text-neutral-500">
                     This action cannot be undone. This will permanently delete{" "}
-                    <span className="text-primary font-semibold">
+                    <span className="text-neutral-900 font-semibold">
                       {selectedTaskIds.length}
                     </span>{" "}
                     tasks and remove all associated data.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-neutral-800 border-neutral-700 text-primary hover:bg-neutral-700">
+                  <AlertDialogCancel className="border border-neutral-200 text-neutral-700 bg-white hover:bg-neutral-50 hover:text-neutral-900">
                     Cancel
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDeleteTasks}
-                    className="bg-red-600 text-white hover:bg-red-700"
+                    className="bg-red-600 text-white hover:bg-red-700 border-none"
                   >
                     Delete Permanently
                   </AlertDialogAction>

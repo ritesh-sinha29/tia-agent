@@ -19,6 +19,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  Lock,
   RefreshCw,
   Settings,
   Settings2,
@@ -60,7 +61,7 @@ interface FlowPreviewProps {
 }
 
 const AI_MODELS = [
-  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini" },
@@ -70,11 +71,11 @@ const AI_MODELS = [
 
 const recipes = [
   {
-    title: "AI Model Research & Email",
+    title: "AI Research & Email",
     description:
-      "Research OpenAI's latest models, create DOCX report, send to email",
+      "Research OpenAI's latest models using AI, create a Google Doc report, and send it to email",
     prompt:
-      "research about open ai latest models , create docx , send to email",
+      "Create a flow to research about open ai latest models using ai node and then create google doc and send email to me",
     icon: FileText,
     colorClass: "text-indigo-500",
     bgClass:
@@ -82,54 +83,61 @@ const recipes = [
     apps: ["Google Docs", "Gmail"],
   },
   {
-    title: "Carbon Footprint Syndication",
-    description: "Research about carbon footprints -> post to slack and reddit",
-    prompt: "research about carbon footprints -> post to slack and reddit.",
-    icon: Share2,
-    colorClass: "text-rose-500",
-    bgClass: "bg-rose-500/10 group-hover:bg-rose-500/20 border-rose-500/20",
-    apps: ["Slack", "Reddit"],
-  },
-  {
-    title: "Asana & Slack Sync",
-    description: "When task is done -> update in asana -> message in slack",
-    prompt: "when task is done -> update in asana -> message in slack.",
+    title: "Meeting Sync & Slack Alert",
+    description:
+      "Create a Google Meet link in Google Calendar and post details to Slack",
+    prompt:
+      "Create a flow to schedule a meeting using google calendar and google meet, then send the meeting details to a slack channel",
     icon: Workflow,
     colorClass: "text-emerald-500",
     bgClass:
       "bg-emerald-500/10 group-hover:bg-emerald-500/20 border-emerald-500/20",
-    apps: ["Asana", "Slack"],
+    apps: ["Calendar", "Google Meet", "Slack"],
   },
   {
-    title: "Slack & Todoist Sync",
-    description: "When task completes -> update in slack -> update in todoist",
-    prompt: "Task x completes, update in slack, update in todoist",
-    icon: CheckCircle,
-    colorClass: "text-amber-500",
-    bgClass: "bg-amber-500/10 group-hover:bg-amber-500/20 border-amber-500/20",
-    apps: ["Slack", "Todoist"],
-  },
-  {
-    title: "Linear & Email Automation",
+    title: "Summarize Email with AI",
     description:
-      "Task x in-progress -> Linear update -> Email -> Message in Slack",
-    prompt: "task x in-progress -> linear update - email - message in slack",
-    icon: Sparkles,
-    colorClass: "text-blue-500",
-    bgClass: "bg-blue-500/10 group-hover:bg-blue-500/20 border-blue-500/20",
-    apps: ["Linear", "Gmail", "Slack"],
-  },
-  {
-    title: "Monthly Activity Summary",
-    description:
-      "Summarize about my last 1 month activity -> create doc -> email.",
+      "Fetch recent Gmail emails, summarize them using AI, and send to Slack",
     prompt:
-      "summarize about my last 1 month activity - create doc -> google doc - email.",
-    icon: FileText,
+      "Create a flow to get recent emails from gmail, use AI node to summarize them, and send the summary to my slack channel",
+    icon: Bot,
     colorClass: "text-purple-500",
     bgClass:
       "bg-purple-500/10 group-hover:bg-purple-500/20 border-purple-500/20",
-    apps: ["Google Docs", "Gmail"],
+    apps: ["Gmail", "Slack"],
+  },
+  {
+    title: "Linear Task to Discord",
+    description:
+      "Post a Discord notification whenever a new task is created in Linear",
+    prompt:
+      "Create a flow to check for new linear tasks and post a notification in discord channel",
+    icon: Sparkles,
+    colorClass: "text-blue-500",
+    bgClass: "bg-blue-500/10 group-hover:bg-blue-500/20 border-blue-500/20",
+    apps: ["Linear", "Discord"],
+  },
+  {
+    title: "Daily Agenda Digest",
+    description:
+      "Get today's Calendar events, use AI to create a summary, and email it",
+    prompt:
+      "Create a flow to fetch today's calendar events, summarize the agenda using AI node, and send an email update via gmail",
+    icon: CheckCircle,
+    colorClass: "text-amber-500",
+    bgClass: "bg-amber-500/10 group-hover:bg-amber-500/20 border-amber-500/20",
+    apps: ["Calendar", "Gmail"],
+  },
+  {
+    title: "Slack Q&A Logger",
+    description:
+      "Monitor questions in Slack, draft answers using AI, and append to Google Docs",
+    prompt:
+      "Create a flow to monitor slack messages, use AI node to write answers, and append them to a google doc",
+    icon: FileText,
+    colorClass: "text-rose-500",
+    bgClass: "bg-rose-500/10 group-hover:bg-rose-500/20 border-rose-500/20",
+    apps: ["Slack", "Google Docs"],
   },
 ];
 
@@ -161,7 +169,12 @@ const getAppIcon = (slug: string): string => {
     return connectorIcons["Outlook"] || "/logo.svg";
   if (lower.includes("typeform"))
     return connectorIcons["Typeform"] || "/logo.svg";
-  if (lower.includes("ashby")) return connectorIcons["Ashby"] || "/logo.svg";
+  if (lower.includes("calendly"))
+    return connectorIcons["Calendly"] || "/logo.svg";
+  if (lower.includes("airtable"))
+    return connectorIcons["Airtable"] || "/logo.svg";
+  if (lower.includes("discord"))
+    return connectorIcons["Discord"] || "/logo.svg";
   if (lower.includes("youtube"))
     return connectorIcons["YouTube"] || "/logo.svg";
   if (lower.includes("docs") || lower.includes("google_doc"))
@@ -228,9 +241,8 @@ function AINodePopover({
 }) {
   const aiConfig = data.ai_config || {};
   const [prompt, setPrompt] = useState<string>(aiConfig.prompt || "");
-  const [provider, setProvider] = useState<"claude" | "openai">(
-    aiConfig.provider ||
-      (aiConfig.model?.includes("gpt") ? "openai" : "claude"),
+  const [provider, setProvider] = useState<"claude" | "openai" | "gemini">(
+    "gemini",
   );
   const [citations, setCitations] = useState<boolean>(
     aiConfig.citations !== undefined ? aiConfig.citations : false,
@@ -249,7 +261,12 @@ function AINodePopover({
           ...aiConfig,
           prompt,
           provider,
-          model: provider === "claude" ? "claude-sonnet-4-5" : "gpt-4o",
+          model:
+            provider === "claude"
+              ? "claude-sonnet-4-5"
+              : provider === "gemini"
+                ? "gemini-2.5-flash"
+                : "gpt-4o",
           citations,
           format,
           extra_instructions: extra,
@@ -260,10 +277,10 @@ function AINodePopover({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 backdrop-blur-[4px]">
-      <div className="bg-white border border-neutral-200 rounded-3xl shadow-xl w-[920px] max-w-[95vw] h-[600px] max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50! flex items-center justify-center bg-black/40 backdrop-blur-[4px]">
+      <div className="bg-white border border-neutral-200 rounded-xl shadow-xl w-[920px] max-w-[95vw] h-[600px] max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-400 bg-neutral-100">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <Image
@@ -278,7 +295,7 @@ function AINodePopover({
               <h3 className="font-semibold text-sm text-neutral-900">
                 Write with AI
               </h3>
-              <p className="text-[11px] text-neutral-400 mt-0.5">
+              <p className="text-[11px] text-neutral-800 mt-0.5">
                 AI Node Configuration
               </p>
             </div>
@@ -299,7 +316,7 @@ function AINodePopover({
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold text-neutral-800">
+                  <label className="block text-sm font-semibold text-neutral-800">
                     Prompt
                   </label>
                   {!prompt.trim() && (
@@ -308,15 +325,9 @@ function AINodePopover({
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-neutral-500 mb-2 leading-normal font-medium">
-                  Give the model detailed instructions. Insert relevant data for
-                  context.{" "}
-                  <span className="text-blue-600 hover:underline cursor-pointer">
-                    See examples
-                  </span>
-                </p>
+
                 <div
-                  className={`border rounded-xl bg-neutral-50/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all ${
+                  className={`border border-neutral-400 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all ${
                     !prompt.trim()
                       ? "border-red-300 focus-within:border-red-400"
                       : "border-neutral-200 focus-within:border-blue-400"
@@ -327,10 +338,10 @@ function AINodePopover({
                     onChange={(e) => setPrompt(e.target.value)}
                     rows={8}
                     placeholder="Write about that mail..."
-                    className="w-full bg-transparent px-4 py-3 text-sm text-neutral-800 placeholder:text-neutral-400 resize-none outline-none leading-relaxed"
+                    className="w-full bg-transparent px-4 py-3 text-sm text-neutral-800 placeholder:text-neutral-400  resize-none outline-none leading-relaxed"
                   />
                   {/* Pills under textarea */}
-                  <div className="px-3 pb-2.5 flex items-center gap-1.5 border-t border-neutral-400 pt-2 bg-neutral-100 rounded-b-xl">
+                  <div className="px-3 pb-2.5 flex items-center gap-1.5 border-t border-neutral-400 pt-2 bg-neutral-200 rounded-b-lg">
                     <button
                       type="button"
                       className="px-2 py-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-md flex items-center gap-1 cursor-pointer transition-colors"
@@ -358,14 +369,11 @@ function AINodePopover({
                 <label className="block text-xs font-bold text-neutral-800 mb-2">
                   Choose Provider
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Claude (Locked) */}
                   <div
-                    onClick={() => setProvider("claude")}
-                    className={`border rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all ${
-                      provider === "claude"
-                        ? "border-blue-500 bg-blue-50/30 ring-2 ring-blue-500/10"
-                        : "border-neutral-200 hover:bg-neutral-50 bg-white"
-                    }`}
+                    className="border border-neutral-200 bg-neutral-50 rounded-sm p-3 flex items-center justify-between cursor-not-allowed select-none transition-all"
+                    title="Claude is locked"
                   >
                     <div className="flex items-center gap-2.5">
                       <Image
@@ -373,33 +381,24 @@ function AINodePopover({
                         alt="Claude"
                         width={20}
                         height={20}
-                        className="object-contain rounded"
+                        className="object-contain"
                       />
                       <div>
                         <span className="text-xs font-bold text-neutral-800">
                           Claude
                         </span>
-                        <p className="text-[9px] text-neutral-400">
-                          Sonnet 4.5
-                        </p>
+                        <p className="text-[10px] ">Sonnet 4.5</p>
                       </div>
                     </div>
-                    <div
-                      className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                        provider === "claude"
-                          ? "border-blue-500 bg-blue-500"
-                          : "border-neutral-300"
-                      }`}
-                    >
-                      {provider === "claude" && (
-                        <Check className="h-2.5 w-2.5 text-white stroke-[3px]" />
-                      )}
+                    <div className="text-neutral-400">
+                      <Lock className="h-3.5 w-3.5" />
                     </div>
                   </div>
 
+                  {/* OpenAI (Active, selected by default) */}
                   <div
                     onClick={() => setProvider("openai")}
-                    className={`border rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all ${
+                    className={`border rounded-sm p-3 flex items-center justify-between cursor-pointer transition-all ${
                       provider === "openai"
                         ? "border-blue-500 bg-blue-50/30 ring-2 ring-blue-500/10"
                         : "border-neutral-200 hover:bg-neutral-50 bg-white"
@@ -417,7 +416,7 @@ function AINodePopover({
                         <span className="text-xs font-bold text-neutral-800">
                           OpenAI
                         </span>
-                        <p className="text-[9px] text-neutral-400">GPT-4o</p>
+                        <p className="text-[10px]">GPT-4o</p>
                       </div>
                     </div>
                     <div
@@ -428,6 +427,43 @@ function AINodePopover({
                       }`}
                     >
                       {provider === "openai" && (
+                        <Check className="h-2.5 w-2.5 text-white stroke-[3px]" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Gemini (Active) */}
+                  <div
+                    onClick={() => setProvider("gemini")}
+                    className={`border rounded-sm p-3 flex items-center justify-between cursor-pointer transition-all ${
+                      provider === "gemini"
+                        ? "border-blue-500 bg-blue-50/30 ring-2 ring-blue-500/10"
+                        : "border-neutral-200 hover:bg-neutral-50 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Image
+                        src="/gemini-color.svg"
+                        alt="Gemini 3 Pro"
+                        width={20}
+                        height={20}
+                        className="object-contain"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-neutral-800">
+                          Gemini
+                        </span>
+                        <p className="text-[10px] ">3-Pro</p>
+                      </div>
+                    </div>
+                    <div
+                      className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                        provider === "gemini"
+                          ? "border-blue-500 bg-blue-500"
+                          : "border-neutral-300"
+                      }`}
+                    >
+                      {provider === "gemini" && (
                         <Check className="h-2.5 w-2.5 text-white stroke-[3px]" />
                       )}
                     </div>
@@ -2055,10 +2091,24 @@ export default function FlowPreview({
                 onClick={() => onSelectSuggestion?.(recipe.prompt, recipe.apps)}
                 className="flex items-center text-left p-3 rounded-md border border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm transition-all duration-200 group cursor-pointer w-full"
               >
-                <div
-                  className={`p-2 rounded-lg border ${recipe.bgClass} mr-3 transition-colors duration-200 shrink-0`}
-                >
-                  <recipe.icon className={`h-4 w-4 ${recipe.colorClass}`} />
+                <div className="flex items-center -space-x-2 mr-3 shrink-0">
+                  {recipe.apps.map((app) => {
+                    const iconUrl = connectorIcons[app] || "/logo.svg";
+                    return (
+                      <div
+                        key={app}
+                        className="h-8 w-8 rounded-lg border border-neutral-200 bg-white p-1.5 flex items-center justify-center shadow-xs"
+                      >
+                        <Image
+                          src={iconUrl}
+                          alt={app}
+                          width={20}
+                          height={20}
+                          className="object-contain"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="flex-1 min-w-0 pr-2">
                   <h4 className="font-semibold text-xs text-neutral-800 group-hover:text-neutral-900 truncate">

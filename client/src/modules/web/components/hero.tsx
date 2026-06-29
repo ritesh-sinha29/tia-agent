@@ -4,8 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
 import { Meteors } from "@/components/ui/meteors";
+import { useUser } from "@clerk/nextjs";
 
 export default function Hero() {
+  const { isLoaded, isSignedIn } = useUser();
+
   return (
     <section className="relative min-h-screen flex flex-col bg-white">
       {/* Micro-animations stylesheet */}
@@ -65,27 +68,40 @@ export default function Hero() {
 
           {/* Heading */}
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold capitalize tracking-tight text-white max-w-4xl leading-[1.08] mb-10">
-            Agent that knows you <br className="hidden sm:inline" />
-            better than your EX !!
+            The AI That Gets You <br className="hidden sm:inline" />
+            Across The Finish Line.
           </h1>
 
           {/* Subheading */}
           <p className="text-slate-200 text-sm sm:text-base md:text-lg max-w-xl leading-relaxed mb-16 md:mb-20">
-            Trained on your life, not the internet.
+            It prioritizes, schedules, reminds, follows up, and adapts
+            automatically as your day changes.
           </p>
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
             {/* Primary CTA */}
-            <Link
-              href="#book"
-              className="group flex items-center justify-between w-full sm:w-auto gap-4 pl-6 pr-2 py-2 rounded-full text-[13px] font-semibold text-black bg-white hover:bg-neutral-100 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-            >
-              <span>Book a strategy call</span>
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-900 text-white group-hover:bg-black transition-colors duration-200">
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
-              </div>
-            </Link>
+            {isLoaded && isSignedIn ? (
+              <Link
+                href="/home"
+                className="group flex items-center justify-between w-full sm:w-auto gap-4 pl-6 pr-2 py-2 rounded-full text-[13px] font-semibold text-black bg-white hover:bg-neutral-100 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+              >
+                <span>Visit dashboard</span>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-900 text-white group-hover:bg-black transition-colors duration-200">
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
+                </div>
+              </Link>
+            ) : (
+              <Link
+                href="/sign-up"
+                className="group flex items-center justify-between w-full sm:w-auto gap-4 pl-6 pr-2 py-2 rounded-full text-[13px] font-semibold text-black bg-white hover:bg-neutral-100 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+              >
+                <span>Sign up now</span>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-900 text-white group-hover:bg-black transition-colors duration-200">
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
+                </div>
+              </Link>
+            )}
 
             {/* Secondary CTA */}
             <Link
@@ -166,17 +182,17 @@ export default function Hero() {
 
       {/* Video Container */}
       <div className="relative z-30 w-full max-w-6xl mx-auto px-6 -mt-24 sm:-mt-36 md:-mt-56 lg:-mt-84 pb-24">
-        <div className="relative group-video rounded-2xl overflow-hidden border border-white/20 bg-black/40 shadow-[0_0_50px_rgba(99,102,241,0.25)] hover:border-white/30 transition-all duration-500">
+        <div className="relative group-video rounded-2xl overflow-hidden border">
           {/* Image Thumbnail */}
           <div className="relative aspect-[16/8] w-full overflow-hidden">
             <Image
-              src="/back1.png"
+              src="/hero.png"
               alt="AgentOS Platform Demo"
               fill
               priority
               className="object-cover transition-transform duration-700 group-hover/video:scale-102"
             />
-            <div className="absolute inset-0 bg-black/10 group-hover/video:bg-black/5 transition-colors duration-300" />
+            <div className="absolute inset-0 bg-linear-to-b from-transparent via-indigo-50/10 to-indigo-500/60 transition-colors duration-300" />
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center">

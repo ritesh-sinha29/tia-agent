@@ -70,7 +70,7 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
 
   const handleRowMouseEnter = (
     e: React.MouseEvent<HTMLDivElement>,
-    task: OverdueTaskItem
+    task: OverdueTaskItem,
   ) => {
     if (cardRef.current) {
       const rowRect = e.currentTarget.getBoundingClientRect();
@@ -118,51 +118,64 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
   return (
     <div
       ref={cardRef}
-      className="h-full w-full border border-neutral-200 dark:border-neutral-800 rounded-xl bg-card dark:bg-neutral-900/80 shadow-xs p-4 flex flex-col relative overflow-visible"
+      className="h-full w-full border border-neutral-200 dark:border-neutral-800 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 shadow-xs p-4 flex flex-col relative overflow-visible"
     >
       {/* DYNAMIC HOVER POPUP — task log style + delay days at top-right */}
-      {hoveredTask && (() => {
-        const dbStatusLabel = STATUS_CONFIG[hoveredTask.status]?.label || hoveredTask.status;
-        const tooltipLabel = `${dbStatusLabel} (Overdue)`;
-        const tooltipDotClass = "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]";
-        const tooltipTextClass = "text-red-500";
-        return (
-          <div
-            className="absolute left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex flex-col gap-1 bg-card border border-border text-foreground rounded-xl shadow-lg p-2.5 w-[200px]"
-            style={{ top: popupTop }}
-          >
-            {/* Title row + delay days top-right */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="text-[11px] font-bold truncate text-foreground capitalize flex-1">
-                {hoveredTask.title.split("#")[0]}
+      {hoveredTask &&
+        (() => {
+          const dbStatusLabel =
+            STATUS_CONFIG[hoveredTask.status]?.label || hoveredTask.status;
+          const tooltipLabel = `${dbStatusLabel} (Overdue)`;
+          const tooltipDotClass =
+            "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]";
+          const tooltipTextClass = "text-red-500";
+          return (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 z-[60] pointer-events-none flex flex-col gap-1 bg-card border border-border text-foreground rounded-xl shadow-lg p-2.5 w-[200px]"
+              style={{ top: popupTop }}
+            >
+              {/* Title row + delay days top-right */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-[11px] font-bold truncate text-foreground capitalize flex-1">
+                  {hoveredTask.title.split("#")[0]}
+                </div>
+                <span className="text-[10px] font-bold text-red-500 shrink-0">
+                  -{hoveredTask.daysOverdue}d
+                </span>
               </div>
-              <span className="text-[10px] font-bold text-red-500 shrink-0">
-                -{hoveredTask.daysOverdue}d
-              </span>
+              {/* Date range */}
+              <div className="flex items-center gap-1.5 text-[9.5px] text-muted-foreground font-semibold">
+                <Clock className="w-3 h-3 text-muted-foreground/75" />
+                <span>
+                  {format(new Date(hoveredTask.startDate), "MMM d")} –{" "}
+                  {format(new Date(hoveredTask.endDate), "MMM d")}
+                </span>
+              </div>
+              {/* Status row */}
+              <div className="flex items-center gap-1.5 pt-1 border-t border-border">
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    tooltipDotClass,
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-[9.5px] font-extrabold uppercase tracking-wide",
+                    tooltipTextClass,
+                  )}
+                >
+                  {tooltipLabel}
+                </span>
+              </div>
             </div>
-            {/* Date range */}
-            <div className="flex items-center gap-1.5 text-[9.5px] text-muted-foreground font-semibold">
-              <Clock className="w-3 h-3 text-muted-foreground/75" />
-              <span>
-                {format(new Date(hoveredTask.startDate), "MMM d")} –{" "}
-                {format(new Date(hoveredTask.endDate), "MMM d")}
-              </span>
-            </div>
-            {/* Status row */}
-            <div className="flex items-center gap-1.5 pt-1 border-t border-border">
-              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", tooltipDotClass)} />
-              <span className={cn("text-[9.5px] font-extrabold uppercase tracking-wide", tooltipTextClass)}>
-                {tooltipLabel}
-              </span>
-            </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* HEADER */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-md border bg-card">
+          <div className="p-1.5 rounded-md border bg-white dark:bg-neutral-900">
             <Hourglass className="w-3.5 h-3.5 text-primary" />
           </div>
           <h3 className="text-sm font-medium tracking-tight text-neutral-900 dark:text-white/90">
@@ -172,7 +185,7 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
         <div
           className={cn(
             "px-3 py-1.5 rounded-sm text-[10px] flex items-center gap-1 border border-accent bg-accent/60 font-bold",
-            debtStatus.textClass
+            debtStatus.textClass,
           )}
         >
           {debtStatus.icon}
@@ -182,17 +195,21 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
 
       {/* STAT SUMMARY */}
       <div className="grid grid-cols-2 gap-2.5 mb-4">
-        <div className="bg-muted rounded-lg p-2.5 border border-accent">
+        <div className="bg-white dark:bg-neutral-900 rounded-lg p-2.5 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
           <div className="text-xl font-bold font-mono tracking-tight leading-none mb-1 text-primary">
             {totalTasksCount}
           </div>
-          <div className="text-[10px] text-muted-foreground font-semibold">Total Tasks</div>
+          <div className="text-[10px] text-muted-foreground font-semibold">
+            Total Tasks
+          </div>
         </div>
-        <div className="bg-muted rounded-lg p-2.5 border border-accent">
+        <div className="bg-white dark:bg-neutral-900 rounded-lg p-2.5 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
           <div className="text-xl font-bold font-mono tracking-tight leading-none mb-1 text-rose-500">
             {overdueCount}
           </div>
-          <div className="text-[10px] text-muted-foreground font-semibold">Delayed Tasks</div>
+          <div className="text-[10px] text-muted-foreground font-semibold">
+            Delayed Tasks
+          </div>
         </div>
       </div>
 
@@ -200,18 +217,20 @@ export const OverdueDebtCard = ({ tasks }: OverdueDebtCardProps) => {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="text-[10px] font-bold text-primary flex items-center justify-between uppercase tracking-wider mb-2.5">
           <span>Worst Delayed Tasks</span>
-          <span className="text-xs font-mono text-muted-foreground normal-case">Delay</span>
+          <span className="text-xs font-mono text-muted-foreground normal-case">
+            Delay
+          </span>
         </div>
 
         {/* Scrollable list with thin visible right scrollbar */}
         <div
           className={cn(
-            "space-y-1 max-h-[130px] overflow-y-auto pr-1",
+            "space-y-1 max-h-[92px] overflow-y-auto pr-1",
             "[&::-webkit-scrollbar]:w-[3px]",
             "[&::-webkit-scrollbar-track]:bg-transparent",
             "[&::-webkit-scrollbar-thumb]:bg-neutral-300",
             "dark:[&::-webkit-scrollbar-thumb]:bg-neutral-700",
-            "[&::-webkit-scrollbar-thumb]:rounded-full"
+            "[&::-webkit-scrollbar-thumb]:rounded-full",
           )}
         >
           {overdueTasks.length === 0 ? (

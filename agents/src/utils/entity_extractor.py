@@ -102,7 +102,7 @@ if "entity_ruler" not in nlp.pipe_names:
     )
 
 # Target entity types and standard spaCy mapping rules
-TARGET_ENTITIES = {"USER", "CONTACT", "TASK", "EVENT", "DOCUMENT", "WORKFLOW", "FACT", "SKILL"}
+TARGET_ENTITIES = {"USER", "CONTACT", "TASK", "EVENT", "DOCUMENT", "WORKFLOW", "FACT", "SKILL", "PREFERENCE"}
 
 PERSON_RE = r"\b[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,3}\b"
 
@@ -116,11 +116,36 @@ SKILL_HINTS = {
     "api design", "bm25", "cypher", "data modeling", "graphrag", "javascript",
     "langchain", "langgraph", "llamaparse", "neo4j", "next.js", "pinecone",
     "prompt engineering", "python", "rag", "react", "security review", "spacy",
-    "streamlit", "typescript", "ux research", "workflow automation",
+    "streamlit", "typescript", "ux research", "workflow automation", "css", "html",
+    "vanilla css", "tailwind", "tailwindcss", "sass", "less", "graphql", "rest api"
 }
 ROLE_HINTS = {
     "analyst", "architect", "designer", "engineer", "lead", "manager",
     "owner", "researcher", "scientist",
+}
+
+# Generic noise words that should not be standalone entities
+GENERIC_WORDS = {
+    "api", "assistant", "details", "data", "database", "yesterday", "today", "tomorrow",
+    "now", "app", "application", "project", "work", "task", "info", "information",
+    "thing", "things", "stuff", "someone", "user", "something", "anything", "nothing",
+    "here", "there", "sync", "process", "program", "system", "file", "code", "repo", "repository",
+    "issue", "ticket", "bug", "feature", "meeting", "call", "event", "standup", "huddle", "sync",
+    "week", "month", "year", "day", "time", "date", "hourly", "daily", "weekly", "monthly",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "page", "website",
+    "domain", "url", "link", "summary", "notes", "status", "priority", "description"
+}
+
+# Known technologies, platforms, tools, libraries, databases to distinguish from human contacts
+TECH_KEYWORDS = {
+    "vercel", "openai", "pinecone", "neo4j", "github", "gitlab", "slack", "google", "microsoft", 
+    "aws", "clerk", "posthog", "redis", "supabase", "mongodb", "postgres", "postgresql", "mysql", 
+    "docker", "kubernetes", "figma", "linear", "jira", "notion", "trello", "zoom", "teams", 
+    "copilot", "chatgpt", "claude", "gemini", "llama", "huggingface", "databricks", "snowflake",
+    "composio", "langgraph", "langchain", "llamaparse", "spacy", "react", "next.js", "nextjs", 
+    "vue", "angular", "svelte", "tailwind", "tailwindcss", "python", "javascript", "typescript",
+    "node", "nodejs", "express", "fastapi", "django", "flask", "ruby", "rails", "rust", "go", "golang",
+    "css", "html", "vanilla css", "sass", "less", "graphql", "rest api", "api"
 }
 
 
@@ -133,6 +158,7 @@ def _clean_and_validate_node(name: str) -> str:
     - Skips if the node starts with '#' or digits followed by whitespace.
     - Skips if the node is longer than 60 characters or empty/single-char.
     - Skips if the node is a merged clause with verbs.
+    - Filters out generic developer noise words.
     """
     if not name:
         return ""
@@ -157,6 +183,14 @@ def _clean_and_validate_node(name: str) -> str:
     if not words:
         return ""
         
+    # Discard if all split words are in GENERIC_WORDS (e.g. "api details", "database data")
+    if all(w in GENERIC_WORDS for w in words):
+        return ""
+        
+    # Discard if single word matches generic blacklist
+    if len(words) == 1 and words[0] in GENERIC_WORDS:
+        return ""
+        
     bad_words = {"with", "to", "from", "for", "and", "in", "on", "of", "about", "works", "contributes", "reports", "attends", "collaborates", "depends"}
     if words[0] in bad_words or words[-1] in bad_words:
         return ""
@@ -175,10 +209,18 @@ def _normalize_node_name(name: str, user_name: Optional[str] = None) -> str:
         return ""
     
     temp_cleaned = name.strip("# \t\n\r,.-'\"")
-    if temp_cleaned.lower() in ("i", "me", "my", "myself"):
+    temp_lower = temp_cleaned.lower()
+    if temp_lower in ("i", "me", "my", "myself", "user", "the user", "he", "she", "his", "her", "him"):
         return "USER"
-    if user_name and temp_cleaned.lower() == user_name.lower():
-        return "USER"
+        
+    if user_name:
+        u_name = user_name.lower()
+        # If the name is exactly user_name, contains it, is contained in it, or is a component of it
+        if (temp_lower == u_name or 
+            temp_lower in u_name.split() or 
+            u_name in temp_lower or 
+            any(part in temp_lower for part in u_name.split() if len(part) > 2)):
+            return "USER"
         
     cleaned = _clean_and_validate_node(name)
     return cleaned
@@ -187,7 +229,7 @@ def _normalize_node_name(name: str, user_name: Optional[str] = None) -> str:
 def map_label(label: str, name: str, user_name: Optional[str] = None) -> str:
     """
     Maps spaCy or custom entity labels to our core entities:
-    USER, CONTACT, TASK, EVENT, DOCUMENT, WORKFLOW, FACT, SKILL
+    USER, CONTACT, TASK, EVENT, DOCUMENT, WORKFLOW, FACT, SKILL, PREFERENCE
     """
     label_upper = label.upper()
     name_lower = name.lower()
@@ -196,12 +238,28 @@ def map_label(label: str, name: str, user_name: Optional[str] = None) -> str:
     if name_lower == "user" or (user_name and name_lower == user_name.lower()):
         return "USER"
 
-    if label_upper == "PERSON":
+    # Specific channel formatting hints
+    if name_lower.startswith("#"):
         return "CONTACT"
 
-    if label_upper in ("ORG", "GPE", "NORP", "LOC", "FAC"):
-        # Organizations, locations, and teams represent communication boundaries
+    name_words = name_lower.split()
+    is_tech = (
+        name_lower in TECH_KEYWORDS or
+        any(w in TECH_KEYWORDS for w in name_words) or
+        any(hint in name_lower for hint in ["db", "database", "api", "service", "library", "framework", "platform", "tool", "sdk", "app", "extension", "plugin", "workflow", "model"])
+    )
+
+    if is_tech:
+        if name_lower in SKILL_HINTS or any(w in SKILL_HINTS for w in name_words):
+            return "SKILL"
+        return "DOCUMENT"
+
+    if label_upper in ("PERSON", "ORG"):
         return "CONTACT"
+
+    if label_upper in ("GPE", "LOC", "FAC", "NORP"):
+        # Geo locations, buildings, groups are factual contexts
+        return "FACT"
 
     if label_upper in ("PRODUCT", "WORK_OF_ART", "LAW"):
         # Digital assets, files, schemas, APIs, libraries
@@ -221,6 +279,9 @@ def map_label(label: str, name: str, user_name: Optional[str] = None) -> str:
     if label_upper == "SKILL":
         return "SKILL"
 
+    if label_upper == "PREFERENCE":
+        return "PREFERENCE"
+
     if label_upper in ("FACT", "ROLE", "EXPERIENCE"):
         return "FACT"
 
@@ -233,9 +294,11 @@ def map_label(label: str, name: str, user_name: Optional[str] = None) -> str:
         return "EVENT"
     if any(word in name_lower.split() for word in ["document", "file", "url", "codebase", "repo", "api", "doc", "pdf", "sheet"]):
         return "DOCUMENT"
-    if name_lower in SKILL_HINTS:
+    if name_lower in SKILL_HINTS or any(w in TECH_KEYWORDS for w in name_words):
         return "SKILL"
-    if any(word in name_lower.split() for word in ["skill", "profile", "fact", "preference", "hobby", "habit"]):
+    if any(word in name_lower.split() for word in ["preference", "prefers", "likes", "favors", "choice"]):
+        return "PREFERENCE"
+    if any(word in name_lower.split() for word in ["skill", "profile", "fact", "hobby", "habit"]):
         return "FACT"
 
     return "FACT"
@@ -496,6 +559,10 @@ def _normalise_relation_type(relation: str) -> str:
     if rel_upper in ("BLOCKS", "PREVENTS"):
         return "BLOCKS"
 
+    # Preferences
+    if rel_upper in ("PREFERS", "PREFER", "LIKES", "LIKE", "FAVORS", "FAVOR", "USES", "USE"):
+        return "PREFERS"
+
     return re.sub(r"[^A-Z0-9_]+", "_", rel_upper).strip("_") or "RELATED_TO"
 
 
@@ -599,6 +666,24 @@ def _extract_profile_relations(text: str, user_name: Optional[str] = None) -> Li
             if work_match:
                 _add_relation(relations, seen, work_match.group("person"), relation_type, work_match.group("target"), user_name)
 
+        # Extract preference statement
+        pref_match = re.search(
+            rf"\b(?P<subject>I|the\s+user|user|{PERSON_RE})\b\s+(?:prefers|likes|favors)\s+(?P<items>.+)$",
+            sentence,
+            flags=re.IGNORECASE
+        )
+        if pref_match:
+            items_str = pref_match.group("items")
+            # Check for "X over Y" pattern
+            over_match = re.search(r"(.+)\s+over\s+(.+)", items_str, flags=re.IGNORECASE)
+            if over_match:
+                pref_item = over_match.group(1).strip()
+                other_item = over_match.group(2).strip()
+                _add_relation(relations, seen, pref_match.group("subject"), "PREFERS", pref_item, user_name)
+            else:
+                for item in _split_profile_items(items_str):
+                    _add_relation(relations, seen, pref_match.group("subject"), "PREFERS", item, user_name)
+
     return relations
 
 
@@ -607,24 +692,136 @@ def extract_knowledge_graph_elements(text: str, user_name: Optional[str] = None)
     Analyzes raw text to extract customized knowledge graph entities (nodes)
     and normalized relationship links (edges).
     """
+    from src.config import settings
+    import os
+    import json
+
+    api_key = settings.openai_api_key or os.getenv("OPENAI_API_KEY")
+    if api_key:
+        try:
+            from langchain_openai import ChatOpenAI
+            llm = ChatOpenAI(model="gpt-4.1-nano", temperature=0.0, api_key=api_key)
+
+            prompt = f"""
+            You are an expert at constructing clean, high-value, uncluttered Knowledge Graphs for developer projects.
+            Your task is to analyze the following sentence describing a user's activity or workspace focus, and extract key entities and relationships.
+
+            The user's name is: "{user_name or 'User'}"
+            Input Sentence: "{text}"
+
+            Guidelines:
+            1. Entity Types and labels to output:
+               - USER: Always map the current user ("{user_name or 'User'}", "I", "me", "my", "myself") to a single entity named "USER" with label "USER".
+               - SKILL: Tools, languages, databases, libraries, frameworks, or technical concepts (e.g., "Next.js", "Neo4j", "Python", "TypeScript", "Tailwind CSS").
+               - TASK: Specific tasks, projects, goals, or milestones (e.g., "Prepare For Hackathon Deadline", "Rath Yatra").
+               - DOCUMENT: Files, directories, documentation, repos, API specs, or websites (e.g., "API Documentation", "GitHub Repo", "index.css").
+               - FACT: Keep this extremely minimal. Only extract high-value facts that don't fit any other category. Never extract abstract concepts.
+            2. Strict Noise and Junk Filtering:
+               - NEVER extract pronouns ("that", "it", "this", "something", "anything", "nothing", "he", "she", "they", "we") as entities.
+               - NEVER extract temporal entities ("next month", "July", "tomorrow", "yesterday", "today", "day", "week", "year") as entities.
+               - NEVER extract abstract, conversational, or filler words (e.g., "growth", "money", "things", "stuff", "idea", "concept", "fact", "sync") as entities.
+               - If an entity name is empty, a single character, or generic, discard it.
+               - Keep entity names concise, specific, and clean. No verbs.
+            3. Relationships:
+               - Express relationships between the extracted entities.
+               - Use uppercase snake_case for relationship types (e.g., "SKILLED_IN", "ASSIGNED_TO", "CREATED", "WORKS_WITH", "DEPENDS_ON", "AUTOMATES", "PREFERS").
+               - The source and target fields in relations MUST exactly match the names of the entities you extracted.
+
+            Return the result strictly as a JSON object with the following structure:
+            {{
+              "entities": [
+                {{"name": "USER", "label": "USER"}},
+                {{"name": "Next.js", "label": "SKILL"}}
+              ],
+              "relations": [
+                {{"source": "USER", "type": "SKILLED_IN", "target": "Next.js"}}
+              ]
+            }}
+            Do not include markdown code block formatting. Return only raw valid JSON.
+            """
+
+            res = llm.invoke(prompt)
+            content = res.content.strip()
+            if "```" in content:
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+
+            parsed = json.loads(content.strip())
+
+            if isinstance(parsed, dict) and "entities" in parsed and "relations" in parsed:
+                valid_entities = []
+                valid_names = set()
+
+                forbidden_words = {
+                    "that", "it", "this", "something", "anything", "nothing", "he", "she", "they", "we",
+                    "growth", "money", "things", "stuff", "idea", "concept", "fact", "sync",
+                    "july", "next month", "tomorrow", "yesterday", "today", "day", "week", "year"
+                }
+
+                for ent in parsed["entities"]:
+                    name = ent.get("name", "").strip()
+                    label = ent.get("label", "FACT").upper()
+                    if label not in {"USER", "CONTACT", "TASK", "EVENT", "DOCUMENT", "WORKFLOW", "FACT", "SKILL", "PREFERENCE"}:
+                        label = "FACT"
+
+                    if not name or len(name) <= 1 or name.lower() in forbidden_words:
+                        continue
+
+                    if name.lower() in ("i", "me", "my", "myself", "user", "the user", (user_name or "user").lower()):
+                        name = "USER"
+                        label = "USER"
+
+                    if label == "CONTACT":
+                        name = name.title()
+
+                    valid_entities.append({"name": name, "label": label})
+                    valid_names.add(name.lower())
+
+                valid_relations = []
+                for rel in parsed["relations"]:
+                    source = rel.get("source", "").strip()
+                    target = rel.get("target", "").strip()
+                    rel_type = rel.get("type", "RELATED_TO").upper().strip()
+
+                    if source.lower() in ("i", "me", "my", "myself", "user", "the user", (user_name or "user").lower()):
+                        source = "USER"
+                    if target.lower() in ("i", "me", "my", "myself", "user", "the user", (user_name or "user").lower()):
+                        target = "USER"
+
+                    if source.lower() in valid_names and target.lower() in valid_names and source != target:
+                        valid_relations.append({
+                            "source": source,
+                            "type": rel_type,
+                            "target": target
+                        })
+
+                return {
+                    "entities": valid_entities,
+                    "relations": valid_relations
+                }
+        except Exception as e:
+            logger.error(f"LLM graph extraction failed: {str(e)}. Falling back to rules/spaCy.")
+
+    # spaCy Fallback
     entities = extract_entities(text, user_name)
     triplets = extract_svo_triplets(text)
-    
+
     cleaned_relations = []
     seen_relations = set()
-    
+
     for subj, rel, obj in triplets:
         cleaned_subj = _normalize_node_name(subj, user_name)
         cleaned_obj = _normalize_node_name(obj, user_name)
         if not cleaned_subj or not cleaned_obj:
             continue
-            
+
         subj_match = next((ent["name"] for ent in entities if ent["name"].lower() in cleaned_subj.lower()), cleaned_subj)
         obj_match = next((ent["name"] for ent in entities if ent["name"].lower() in cleaned_obj.lower()), cleaned_obj)
-        
+
         subj_match = _normalize_node_name(subj_match, user_name)
         obj_match = _normalize_node_name(obj_match, user_name)
-        
+
         if subj_match and obj_match and subj_match != obj_match:
             relation = {
                 "source": subj_match,
@@ -661,7 +858,7 @@ def extract_knowledge_graph_elements(text: str, user_name: Optional[str] = None)
                 ent = {"name": name, "label": mapped}
                 entity_map[key] = ent
                 entities.append(ent)
-            
+
     return {
         "entities": entities,
         "relations": cleaned_relations

@@ -85,17 +85,17 @@ const priorityBars: Record<string, React.ReactNode> = {
   low: (
     <div className="flex items-end gap-px h-3 mb-0.5">
       <div className="w-[4px] h-5 bg-yellow-500 rounded-[1px]" />
-      <div className="w-[4px] h-4 dark:bg-neutral-400 bg-accent rounded-[1px]" />
-      <div className="w-[4px] h-3 dark:bg-neutral-400 bg-accent rounded-[1px]" />
-      <div className="w-[4px] h-[8px] dark:bg-neutral-400 bg-accent rounded-[1px]" />
+      <div className="w-[4px] h-4 bg-neutral-400  rounded-[1px]" />
+      <div className="w-[4px] h-3 bg-neutral-400 rounded-[1px]" />
+      <div className="w-[4px] h-[8px] bg-neutral-400 rounded-[1px]" />
     </div>
   ),
   medium: (
     <div className="flex items-end gap-px h-3 mb-0.5">
       <div className="w-[4px] h-5 bg-green-500 rounded-[1px]" />
       <div className="w-[4px] h-4 bg-green-500 rounded-[1px]" />
-      <div className="w-[4px] h-3 dark:bg-neutral-400 bg-accent rounded-[1px]" />
-      <div className="w-[4px] h-[8px] dark:bg-neutral-400 bg-accent rounded-[1px]" />
+      <div className="w-[4px] h-3 bg-neutral-400  rounded-[1px]" />
+      <div className="w-[4px] h-[8px] bg-neutral-400 rounded-[1px]" />
     </div>
   ),
   high: (
@@ -103,7 +103,7 @@ const priorityBars: Record<string, React.ReactNode> = {
       <div className="w-[4px] h-5 bg-red-500 rounded-[1px]" />
       <div className="w-[4px] h-4 bg-red-500 rounded-[1px]" />
       <div className="w-[4px] h-3 bg-red-500 rounded-[1px]" />
-      <div className="w-[4px] h-[8px] dark:bg-neutral-400 bg-accent rounded-[1px]" />
+      <div className="w-[4px] h-[8px] bg-neutral-400  rounded-[1px]" />
     </div>
   ),
 };
@@ -375,25 +375,25 @@ export const TableTab = ({
                                 <AlertCircle className="w-4 h-4" /> Delete Task
                               </DropdownMenuItem>
                             </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-neutral-900 border-neutral-800 shadow-2xl">
+                            <AlertDialogContent className="bg-white border border-neutral-200 shadow-xl max-w-md rounded-xl p-6">
                               <AlertDialogHeader>
-                                <AlertDialogTitle className="text-primary">
+                                <AlertDialogTitle className="text-neutral-900 font-semibold">
                                   Are you absolutely sure?
                                 </AlertDialogTitle>
-                                <AlertDialogDescription className="text-muted-foreground">
+                                <AlertDialogDescription className="text-neutral-500">
                                   This action cannot be undone. This will
                                   permanently delete this task.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel className="bg-neutral-800 border-neutral-700 text-primary hover:bg-neutral-700">
+                                <AlertDialogCancel className="border border-neutral-200 text-neutral-700 bg-white hover:bg-neutral-50 hover:text-neutral-900">
                                   Cancel
                                 </AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() =>
                                     handleDelete(task._id as Id<"tasks">)
                                   }
-                                  className="bg-red-600 text-white hover:bg-red-700"
+                                  className="bg-red-600 text-white hover:bg-red-700 border-none"
                                 >
                                   Delete Permanently
                                 </AlertDialogAction>
