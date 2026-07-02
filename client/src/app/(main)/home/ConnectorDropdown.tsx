@@ -12,7 +12,6 @@ import { api } from "../../../../convex/_generated/api";
 const connectors = [
   { name: "Gmail", icon: "/gmail.png" },
   { name: "Slack", icon: "/slack.png" },
-  { name: "GitHub", icon: "/github.png" },
   { name: "Reddit", icon: "/reddit.png" },
   { name: "Calendar", icon: "/calendar.png" },
   { name: "LinkedIn", icon: "/linkedin.png" },
@@ -92,6 +91,7 @@ export function ConnectorDropdown() {
       onMouseLeave={() => setIsOpen(false)}
     >
       <Button
+        id="tour-connectors-btn"
         type="button"
         variant="outline"
         size="icon"

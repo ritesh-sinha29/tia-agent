@@ -1,42 +1,53 @@
-# Use official lightweight Python image
-FROM python:3.12-slim
+# Stage 1: Build virtual environment
+FROM python:3.12-slim AS builder
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_VERSION=2.0.0 \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1
 
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
-# Install system dependencies
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="$POETRY_HOME/bin:$PATH"
 
-# Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml poetry.lock ./
 
 # Install dependencies
 RUN poetry install --no-root --no-directory
 
-# Copy application files
+# Stage 2: Runtime image
+FROM python:3.12-slim AS runner
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder stage
+COPY --from=builder /app/.venv /app/.venv
+
+# Pre-download spaCy English models into the virtualenv context
+RUN python -m spacy download en_core_web_md && \
+    python -m spacy download en_core_web_sm
+
+# Copy the application source code
 COPY . .
 
-# Expose port (Cloud Run sets the PORT env, default 8080)
-EXPOSE 8080
+# Expose port (Cloud Run sets PORT env dynamically)
+EXPOSE 8000
 
-# Command to run on container startup
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["python", "main.py"]

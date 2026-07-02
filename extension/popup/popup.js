@@ -77,10 +77,8 @@ async function initPopup() {
       if (!tab.id || !tab.url) continue;
       try {
         const tabHostname = new URL(tab.url).hostname;
-        if (tabHostname !== "localhost" && 
-        !tabHostname.includes("aria-os")
-        //  && !tabHostname.includes("my-app.com")  [ FOR PRODUCTION ADD LIVE domain HERE ]
-        ) continue;
+        if (tabHostname !== "localhost" && !tabHostname.includes("aria-os")
+          && !tabHostname.includes("aria-client-nextjs-541542572312.asia-south1.run.app")) continue;
       } catch (e) {
         continue;
       }
@@ -91,9 +89,7 @@ async function initPopup() {
         console.log("[Popup] Found user ID via scripting API:", data.userId);
         await chrome.storage.local.set({
           userId: data.userId,
-// for production update url here 
           convexUrl: data.convexUrl || "https://wandering-antelope-3.convex.site",
-
           userName: data.userName || ""
         });
         await updateUI(data.userId);

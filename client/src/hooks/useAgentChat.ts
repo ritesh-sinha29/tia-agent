@@ -6,6 +6,7 @@ import {
 import { useAgentStore } from "./useAgentStore";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { toast } from "sonner";
 
 export function useAgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -19,6 +20,7 @@ export function useAgentChat() {
     edges: any[];
   } | null>(null);
   const [isRightOpen, setIsRightOpen] = useState(false);
+  const [hasShownColdStartToast, setHasShownColdStartToast] = useState(false);
   const { activeMode } = useAgentStore();
   const [threadId] = useState(
     () => `thread_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -28,6 +30,14 @@ export function useAgentChat() {
   const sendMessage = useCallback(
     async (textToSend: string, userDisplayMsg?: string) => {
       if (!textToSend.trim()) return;
+
+      if (!hasShownColdStartToast) {
+        toast.info("Note: The first response from the agent typically takes 15-20s due to a serverless cold start.", {
+          position: "bottom-right",
+          duration: 7000,
+        });
+        setHasShownColdStartToast(true);
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -243,8 +253,6 @@ export function useAgentChat() {
           {
             role: "assistant",
             content: cleanTextResponse,
-            steps: finalSteps,
-            traceLogs: [...accumulatedTraceLogs],
             executionTime: Math.round((Date.now() - startTime) / 1000),
           },
         ]);
@@ -262,7 +270,6 @@ export function useAgentChat() {
                 message: "Failed to establish connection.",
               },
             ],
-            traceLogs: [...accumulatedTraceLogs],
             executionTime: Math.round((Date.now() - startTime) / 1000),
           },
         ]);
@@ -272,7 +279,7 @@ export function useAgentChat() {
         setActiveTraceLogs([]);
       }
     },
-    [activeMode, user?._id, threadId],
+    [activeMode, user?._id, threadId, hasShownColdStartToast],
   );
 
   return {

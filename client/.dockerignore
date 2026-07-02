@@ -1,7 +1,10 @@
-node_modules
-.next
-.env*.local
 .git
-.gitignore
+.next
+node_modules
+out
+.env*.local
+.npm
+pnpm-debug.log
 README.md
-pnpm-lock.yaml
+Dockerfile
+.dockerignore
